@@ -96,3 +96,7 @@ test-results/
 # Vite
 # ------------------------------------------
 *.local
+# AI coding-agent local skills
+server/.agents/
+server/.claude/
+server/.windsurf/
