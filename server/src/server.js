@@ -1,16 +1,10 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { PrismaClient } from "../generated/prisma/client.ts";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { prisma } from "./lib/prisma.js";
+import authRoutes from "./routes/auth.routes.js";
 
 const app = express();
-
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL
-});
-
-const prisma = new PrismaClient({ adapter });
 
 const PORT = process.env.PORT || 5000;
 
@@ -18,10 +12,13 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Authentication routes
+app.use("/api/auth", authRoutes);
+
 // Basic API test
 app.get("/api/health", async (req, res) => {
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    await prisma.$queryRawUnsafe("SELECT 1");
 
     res.json({
       success: true,
