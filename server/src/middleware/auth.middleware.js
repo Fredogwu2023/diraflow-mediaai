@@ -15,7 +15,7 @@ export async function authenticateToken(req, res, next) {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
-        message: "Authentication token is required."
+        message: "Authentication token is required.",
       });
     }
 
@@ -23,30 +23,37 @@ export async function authenticateToken(req, res, next) {
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
+    if (!decoded.sub) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid authentication token.",
+      });
+    }
+
     const user = await prisma.user.findUnique({
       where: {
-        id: decoded.sub
+        id: decoded.sub,
       },
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "User account not found."
+        message: "User account not found.",
       });
     }
 
     if (!user.isActive) {
       return res.status(403).json({
         success: false,
-        message: "User account is inactive."
+        message: "User account is inactive.",
       });
     }
 
@@ -58,7 +65,7 @@ export async function authenticateToken(req, res, next) {
 
     return res.status(401).json({
       success: false,
-      message: "Invalid or expired authentication token."
+      message: "Invalid or expired authentication token.",
     });
   }
 }

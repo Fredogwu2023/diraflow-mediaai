@@ -19,11 +19,11 @@ export function generateToken(user) {
   return jwt.sign(
     {
       sub: user.id,
-      email: user.email
+      email: user.email,
     },
     JWT_SECRET,
     {
-      expiresIn: "1d"
+      expiresIn: "1d",
     }
   );
 }

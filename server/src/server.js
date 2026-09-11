@@ -1,30 +1,54 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { prisma } from "./lib/prisma.js";
+import pg from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../generated/prisma/client.ts";
+
 import authRoutes from "./routes/auth.routes.js";
+import contentRoutes from "./routes/content.routes.js";
+
+const { Pool } = pg;
 
 const app = express();
-
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+
+const prisma = new PrismaClient({
+  adapter,
+});
+
+// Make Prisma available to routes through Express
+app.locals.prisma = prisma;
+
+// Global middleware
 app.use(cors());
 app.use(express.json());
 
-// Authentication routes
-app.use("/api/auth", authRoutes);
+// Root endpoint
+app.get("/", (req, res) => {
+  res.json({
+    name: "DiraFlow MediaAI API",
+    version: "1.0.0",
+    status: "running",
+  });
+});
 
-// Basic API test
+// Health + database test
 app.get("/api/health", async (req, res) => {
   try {
-    await prisma.$queryRawUnsafe("SELECT 1");
+    await prisma.$queryRaw`SELECT 1`;
 
     res.json({
       success: true,
       message: "DiraFlow MediaAI API is running",
       database: "connected",
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Database connection error:", error);
@@ -32,21 +56,20 @@ app.get("/api/health", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "API is running but database connection failed",
-      database: "disconnected"
+      database: "disconnected",
     });
   }
 });
 
-// Root endpoint
-app.get("/", (req, res) => {
-  res.json({
-    name: "DiraFlow MediaAI API",
-    version: "1.0.0",
-    status: "running"
-  });
-});
+// Authentication routes
+app.use("/api/auth", authRoutes);
+
+// Content routes
+app.use("/api/content", contentRoutes);
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`DiraFlow MediaAI API running on http://localhost:${PORT}`);
+  console.log(
+    `DiraFlow MediaAI API running on http://localhost:${PORT}`
+  );
 });

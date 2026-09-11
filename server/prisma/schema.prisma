@@ -7,6 +7,23 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ContentType {
+  TEXT
+  SCRIPT
+  VIDEO
+  AUDIO
+  IMAGE
+  SOCIAL_POST
+}
+
+enum ContentStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
 model Organization {
   id          String   @id @default(cuid())
   name        String
@@ -19,6 +36,7 @@ model Organization {
   members    OrganizationMember[]
   workspaces Workspace[]
   auditLogs  AuditLog[]
+  contents   Content[]
 }
 
 model User {
@@ -36,6 +54,10 @@ model User {
   workspaceMemberships    WorkspaceMember[]
   auditLogs               AuditLog[]
   userRoles               UserRole[]
+
+  createdContents  Content[] @relation("ContentCreatedBy")
+  reviewedContents Content[] @relation("ContentReviewedBy")
+  approvedContents Content[] @relation("ContentApprovedBy")
 }
 
 model OrganizationMember {
@@ -63,6 +85,7 @@ model Workspace {
   organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   members      WorkspaceMember[]
   auditLogs    AuditLog[]
+  contents     Content[]
 
   @@unique([organizationId, slug])
 }
@@ -125,6 +148,44 @@ model UserRole {
   @@index([userId])
   @@index([roleId])
   @@index([workspaceId])
+}
+
+model Content {
+  id             String @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  createdById    String
+
+  title       String
+  description String?
+  type        ContentType
+  status      ContentStatus @default(DRAFT)
+  body        String?
+
+  reviewedById String?
+  reviewedAt   DateTime?
+
+  approvedById String?
+  approvedAt   DateTime?
+
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  createdBy  User  @relation("ContentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  reviewedBy User? @relation("ContentReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  approvedBy User? @relation("ContentApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([createdById])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model AuditLog {
