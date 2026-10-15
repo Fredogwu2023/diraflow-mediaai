@@ -1,27 +1,18 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import pg from "pg";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../generated/prisma/client.ts";
-
+import { prisma } from "./lib/prisma.js";
 import authRoutes from "./routes/auth.routes.js";
 import contentRoutes from "./routes/content.routes.js";
+import assetsRoutes from "./routes/assets.routes.js";
+import distributionRoutes from "./routes/distribution.routes.js";
+import voiceRoutes from "./routes/voice.routes.js";
+import receptionistRoutes from "./routes/receptionist.routes.js";
 
-const { Pool } = pg;
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-const adapter = new PrismaPg(pool);
-
-const prisma = new PrismaClient({
-  adapter,
-});
 
 // Make Prisma available to routes through Express
 app.locals.prisma = prisma;
@@ -66,6 +57,12 @@ app.use("/api/auth", authRoutes);
 
 // Content routes
 app.use("/api/content", contentRoutes);
+app.use("/api/assets", assetsRoutes);
+app.use("/api/distribution", distributionRoutes);
+
+// Voice preview routes
+app.use("/api/voices", voiceRoutes);
+app.use("/api/receptionist", receptionistRoutes);
 
 // Start server
 app.listen(PORT, () => {

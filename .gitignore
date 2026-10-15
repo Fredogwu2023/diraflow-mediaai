@@ -100,3 +100,20 @@ test-results/
 server/.agents/
 server/.claude/
 server/.windsurf/
+
+# Local investigation and recovery backups
+*.bak
+*.backup
+*.backup-*
+*.before-*
+*.failed-patch-*
+server/backups/
+
+# Local terminal-output snapshots
+/App-current.txt
+/App-full.txt
+/ersUSER*
+/t *MIGRATION*
+
+# Local backup copies
+*-backup*

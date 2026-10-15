@@ -9,6 +9,35 @@ import {
 import { authenticateToken } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
+async function getUserPermissions(prisma, userId) {
+  const userRoles = await prisma.userRole.findMany({
+    where: {
+      userId,
+    },
+    include: {
+      role: {
+        include: {
+          permissions: {
+            include: {
+              permission: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return [
+    ...new Set(
+      userRoles.flatMap((userRole) =>
+        userRole.role.permissions.map(
+          (rolePermission) =>
+            rolePermission.permission.name
+        )
+      )
+    ),
+  ];
+}
 
 function createSlug(value) {
   return value
@@ -291,6 +320,10 @@ router.post("/login", async (req, res) => {
     });
 
     const token = generateToken(user);
+    const permissions = await getUserPermissions(
+      prisma,
+      user.id
+    );
 
     return res.json({
       success: true,
@@ -302,6 +335,7 @@ router.post("/login", async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         isActive: user.isActive,
+        permissions,
       },
     });
   } catch (error) {
@@ -348,9 +382,17 @@ router.get("/me", authenticateToken, async (req, res) => {
       });
     }
 
+    const permissions = await getUserPermissions(
+      prisma,
+      user.id
+    );
+
     return res.json({
       success: true,
-      user,
+      user: {
+        ...user,
+        permissions,
+      },
     });
   } catch (error) {
     console.error("Current user error:", error);

@@ -24,6 +24,30 @@ enum ContentStatus {
   ARCHIVED
 }
 
+enum DistributionPlanStatus {
+  QUEUED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum DistributionRepeatInterval {
+  NONE
+  DAY
+  WEEK
+  MONTH
+}
+
+enum DistributionDeliveryStatus {
+  QUEUED
+  PROCESSING
+  PUBLISHED
+  FAILED
+  RECONCILIATION_REQUIRED
+  CANCELLED
+}
+
 model Organization {
   id          String   @id @default(cuid())
   name        String
@@ -33,10 +57,13 @@ model Organization {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members    OrganizationMember[]
-  workspaces Workspace[]
-  auditLogs  AuditLog[]
-  contents   Content[]
+  members           OrganizationMember[]
+  workspaces        Workspace[]
+  auditLogs         AuditLog[]
+  contents          Content[]
+  distributionPlans DistributionPlan[]
+
+  mediaAssets MediaAsset[]
 }
 
 model User {
@@ -55,9 +82,12 @@ model User {
   auditLogs               AuditLog[]
   userRoles               UserRole[]
 
-  createdContents  Content[] @relation("ContentCreatedBy")
-  reviewedContents Content[] @relation("ContentReviewedBy")
-  approvedContents Content[] @relation("ContentApprovedBy")
+  createdContents          Content[]          @relation("ContentCreatedBy")
+  reviewedContents         Content[]          @relation("ContentReviewedBy")
+  approvedContents         Content[]          @relation("ContentApprovedBy")
+  createdDistributionPlans DistributionPlan[] @relation("DistributionPlanCreatedBy")
+
+  uploadedMediaAssets MediaAsset[]
 }
 
 model OrganizationMember {
@@ -82,10 +112,13 @@ model Workspace {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  members      WorkspaceMember[]
-  auditLogs    AuditLog[]
-  contents     Content[]
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members           WorkspaceMember[]
+  auditLogs         AuditLog[]
+  contents          Content[]
+  distributionPlans DistributionPlan[]
+
+  mediaAssets MediaAsset[]
 
   @@unique([organizationId, slug])
 }
@@ -180,6 +213,10 @@ model Content {
   reviewedBy User? @relation("ContentReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   approvedBy User? @relation("ContentApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
 
+  distributionPlans DistributionPlan[]
+
+  mediaAssets MediaAsset[]
+
   @@index([organizationId])
   @@index([workspaceId])
   @@index([createdById])
@@ -209,4 +246,96 @@ model AuditLog {
   @@index([workspaceId])
   @@index([userId])
   @@index([createdAt])
+}
+
+model DistributionPlan {
+  id             String @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  contentId      String
+  createdById    String
+
+  scheduledAt    DateTime?
+  timezone       String                     @default("Africa/Lagos")
+  repeatInterval DistributionRepeatInterval @default(NONE)
+  repeatCount    Int                        @default(1)
+  status         DistributionPlanStatus     @default(QUEUED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  content      Content                @relation(fields: [contentId], references: [id], onDelete: Restrict)
+  createdBy    User                   @relation("DistributionPlanCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  deliveries   DistributionDelivery[]
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([contentId])
+  @@index([createdById])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model DistributionDelivery {
+  id               String                     @id @default(cuid())
+  planId           String
+  platform         String
+  occurrenceNumber Int
+  scheduledAt      DateTime
+  status           DistributionDeliveryStatus @default(QUEUED)
+  attemptCount     Int                        @default(0)
+  externalPostId   String?
+  lastError        String?
+  publishedAt      DateTime?
+  nextAttemptAt    DateTime?
+
+  processingStartedAt      DateTime?
+  processingLeaseExpiresAt DateTime?
+  claimToken               String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  plan DistributionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, platform, occurrenceNumber])
+  @@index([planId])
+  @@index([status, scheduledAt])
+  @@index([nextAttemptAt])
+  @@index([status, processingLeaseExpiresAt])
+}
+
+enum MediaAssetStatus {
+  PENDING_UPLOAD
+  AVAILABLE
+  FAILED
+  DELETED
+}
+
+model MediaAsset {
+  id             String  @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  contentId      String?
+  uploadedById   String
+
+  storageKey       String           @unique
+  originalFilename String
+  mimeType         String
+  sizeBytes        BigInt
+  status           MediaAssetStatus @default(PENDING_UPLOAD)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  content      Content?     @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  uploadedBy   User         @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, workspaceId])
+  @@index([contentId])
+  @@index([uploadedById])
+  @@index([status, createdAt])
 }

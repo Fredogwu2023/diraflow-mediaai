@@ -1,7 +1,5 @@
 import express from "express";
-
 import { prisma } from "../lib/prisma.js";
-
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { requirePermission } from "../middleware/authorization.middleware.js";
 
@@ -11,6 +9,10 @@ import {
   getContentById,
   updateContent,
   archiveContent,
+  submitContentForReview,
+  reviewContent,
+  approveContent,
+  publishContent,
 } from "../services/content.service.js";
 
 const router = express.Router();
@@ -24,13 +26,11 @@ const allowedTypes = [
   "SOCIAL_POST",
 ];
 
-const allowedStatuses = [
-  "DRAFT",
-  "IN_REVIEW",
-  "APPROVED",
-  "PUBLISHED",
-  "ARCHIVED",
-];
+/*
+|--------------------------------------------------------------------------
+| USER CONTEXT
+|--------------------------------------------------------------------------
+*/
 
 async function getUserContext(userId) {
   const membership = await prisma.organizationMember.findFirst({
@@ -46,7 +46,9 @@ async function getUserContext(userId) {
   });
 
   if (!membership) {
-    return null;
+    throw new Error(
+      "User does not belong to an active organization"
+    );
   }
 
   const workspaceMembership =
@@ -64,7 +66,9 @@ async function getUserContext(userId) {
     });
 
   if (!workspaceMembership) {
-    return null;
+    throw new Error(
+      "User does not belong to an active workspace"
+    );
   }
 
   return {
@@ -73,7 +77,38 @@ async function getUserContext(userId) {
   };
 }
 
-// POST /api/content
+/*
+|--------------------------------------------------------------------------
+| GET SCOPED CONTENT
+|--------------------------------------------------------------------------
+*/
+
+async function getScopedContent(req) {
+  const context = await getUserContext(req.user.id);
+
+  const content = await getContentById(
+    context.organizationId,
+    context.workspaceId,
+    req.params.id
+  );
+
+  return {
+    context,
+    content,
+  };
+}
+
+/*
+|--------------------------------------------------------------------------
+| CREATE CONTENT
+|--------------------------------------------------------------------------
+|
+| POST /api/content
+|
+| Permission: content.create
+|--------------------------------------------------------------------------
+*/
+
 router.post(
   "/",
   authenticateToken,
@@ -87,142 +122,163 @@ router.post(
         body,
       } = req.body;
 
-      if (!title || typeof title !== "string") {
+      if (!title || !title.trim()) {
         return res.status(400).json({
           success: false,
-          message: "Content title is required.",
+          message: "Title is required",
         });
       }
 
       if (!type || !allowedTypes.includes(type)) {
         return res.status(400).json({
           success: false,
-          message: `Content type must be one of: ${allowedTypes.join(", ")}.`,
+          message: `Invalid content type. Allowed types: ${allowedTypes.join(
+            ", "
+          )}`,
         });
       }
 
-      const context = await getUserContext(req.user.id);
-
-      if (!context) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "User does not have an active organization and workspace.",
-        });
-      }
+      const context = await getUserContext(
+        req.user.id
+      );
 
       const content = await createContent({
         organizationId: context.organizationId,
         workspaceId: context.workspaceId,
         createdById: req.user.id,
         title: title.trim(),
-        description:
-          typeof description === "string"
-            ? description.trim()
-            : null,
+        description: description?.trim() || null,
         type,
-        body:
-          typeof body === "string"
-            ? body
-            : null,
+        body: body || null,
       });
 
       return res.status(201).json({
         success: true,
-        message: "Content created successfully.",
-        content,
+        message: "Content created successfully",
+        data: content,
       });
     } catch (error) {
-      console.error("Create content error:", error);
+      console.error(
+        "Create content error:",
+        error
+      );
 
       return res.status(500).json({
         success: false,
-        message: "Unable to create content.",
+        message:
+          error.message ||
+          "Failed to create content",
       });
     }
   }
 );
 
-// GET /api/content
+/*
+|--------------------------------------------------------------------------
+| LIST CONTENT
+|--------------------------------------------------------------------------
+|
+| GET /api/content
+|
+| Permission: content.read
+|--------------------------------------------------------------------------
+*/
+
 router.get(
   "/",
   authenticateToken,
   requirePermission("content.read"),
   async (req, res) => {
     try {
-      const context = await getUserContext(req.user.id);
+      const context = await getUserContext(
+        req.user.id
+      );
 
-      if (!context) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "User does not have an active organization and workspace.",
-        });
-      }
-
-      const contents = await listContent(context);
+      const content = await listContent(
+        context.organizationId,
+        context.workspaceId
+      );
 
       return res.json({
         success: true,
-        count: contents.length,
-        contents,
+        data: content,
       });
     } catch (error) {
-      console.error("List content error:", error);
+      console.error(
+        "List content error:",
+        error
+      );
 
       return res.status(500).json({
         success: false,
-        message: "Unable to retrieve content.",
+        message:
+          error.message ||
+          "Failed to retrieve content",
       });
     }
   }
 );
 
-// GET /api/content/:id
+/*
+|--------------------------------------------------------------------------
+| GET CONTENT BY ID
+|--------------------------------------------------------------------------
+|
+| GET /api/content/:id
+|
+| Permission: content.read
+|--------------------------------------------------------------------------
+*/
+
 router.get(
   "/:id",
   authenticateToken,
   requirePermission("content.read"),
   async (req, res) => {
     try {
-      const context = await getUserContext(req.user.id);
-
-      if (!context) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "User does not have an active organization and workspace.",
-        });
-      }
-
-      const content = await getContentById({
-        id: req.params.id,
-        ...context,
-      });
+      const { content } =
+        await getScopedContent(req);
 
       if (!content) {
         return res.status(404).json({
           success: false,
-          message: "Content not found.",
+          message: "Content not found",
         });
       }
 
       return res.json({
         success: true,
-        content,
+        data: content,
       });
     } catch (error) {
-      console.error("Get content error:", error);
+      console.error(
+        "Get content error:",
+        error
+      );
 
       return res.status(500).json({
         success: false,
-        message: "Unable to retrieve content.",
+        message:
+          error.message ||
+          "Failed to retrieve content",
       });
     }
   }
 );
 
-// PUT /api/content/:id
+/*
+|--------------------------------------------------------------------------
+| UPDATE CONTENT
+|--------------------------------------------------------------------------
+|
+| PUT /api/content/:id
+|
+| Permission: content.create
+|
+| Only DRAFT content can be edited.
+|--------------------------------------------------------------------------
+*/
+
 router.put(
   "/:id",
   authenticateToken,
@@ -230,151 +286,435 @@ router.put(
   async (req, res) => {
     try {
       const {
-        title,
-        description,
-        type,
-        body,
-        status,
-      } = req.body;
-
-      const context = await getUserContext(req.user.id);
-
-      if (!context) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "User does not have an active organization and workspace.",
-        });
-      }
-
-      const data = {};
-
-      if (title !== undefined) {
-        if (
-          typeof title !== "string" ||
-          !title.trim()
-        ) {
-          return res.status(400).json({
-            success: false,
-            message: "Title must be a non-empty text value.",
-          });
-        }
-
-        data.title = title.trim();
-      }
-
-      if (description !== undefined) {
-        data.description =
-          typeof description === "string"
-            ? description.trim()
-            : null;
-      }
-
-      if (type !== undefined) {
-        if (!allowedTypes.includes(type)) {
-          return res.status(400).json({
-            success: false,
-            message: `Content type must be one of: ${allowedTypes.join(", ")}.`,
-          });
-        }
-
-        data.type = type;
-      }
-
-      if (body !== undefined) {
-        data.body =
-          typeof body === "string"
-            ? body
-            : null;
-      }
-
-      if (status !== undefined) {
-        if (!allowedStatuses.includes(status)) {
-          return res.status(400).json({
-            success: false,
-            message: `Content status must be one of: ${allowedStatuses.join(", ")}.`,
-          });
-        }
-
-        data.status = status;
-      }
-
-      if (Object.keys(data).length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: "No valid content fields were provided for update.",
-        });
-      }
-
-      const content = await updateContent({
-        id: req.params.id,
-        ...context,
-        data,
-      });
+        context,
+        content,
+      } = await getScopedContent(req);
 
       if (!content) {
         return res.status(404).json({
           success: false,
-          message: "Content not found.",
+          message: "Content not found",
         });
       }
 
+      if (content.status !== "DRAFT") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Only draft content can be edited",
+        });
+      }
+
+      const {
+        title,
+        description,
+        type,
+        body,
+      } = req.body;
+
+      if (
+        type &&
+        !allowedTypes.includes(type)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid content type",
+        });
+      }
+
+      const updated =
+        await updateContent(
+          context.organizationId,
+          context.workspaceId,
+          req.params.id,
+          {
+            ...(title !== undefined && {
+              title: title.trim(),
+            }),
+            ...(description !== undefined && {
+              description:
+                description?.trim() || null,
+            }),
+            ...(type !== undefined && {
+              type,
+            }),
+            ...(body !== undefined && {
+              body,
+            }),
+          },
+          req.user.id
+        );
+
       return res.json({
         success: true,
-        message: "Content updated successfully.",
-        content,
+        message:
+          "Content updated successfully",
+        data: updated,
       });
     } catch (error) {
-      console.error("Update content error:", error);
+      console.error(
+        "Update content error:",
+        error
+      );
 
       return res.status(500).json({
         success: false,
-        message: "Unable to update content.",
+        message:
+          error.message ||
+          "Failed to update content",
       });
     }
   }
 );
 
-// DELETE /api/content/:id
+/*
+|--------------------------------------------------------------------------
+| SUBMIT CONTENT FOR REVIEW
+|--------------------------------------------------------------------------
+|
+| POST /api/content/:id/submit-review
+|
+| Permission: content.create
+|
+| DRAFT → IN_REVIEW
+|--------------------------------------------------------------------------
+*/
+
+router.post(
+  "/:id/submit-review",
+  authenticateToken,
+  requirePermission("content.create"),
+  async (req, res) => {
+    try {
+      const {
+        context,
+        content,
+      } = await getScopedContent(req);
+
+      if (!content) {
+        return res.status(404).json({
+          success: false,
+          message: "Content not found",
+        });
+      }
+
+      if (content.status !== "DRAFT") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Only draft content can be submitted for review",
+        });
+      }
+
+      const updated =
+        await submitContentForReview(
+          context.organizationId,
+          context.workspaceId,
+          req.params.id,
+          req.user.id
+        );
+
+      return res.json({
+        success: true,
+        message:
+          "Content submitted for review",
+        data: updated,
+      });
+    } catch (error) {
+      console.error(
+        "Submit review error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to submit content for review",
+      });
+    }
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
+| REVIEW CONTENT
+|--------------------------------------------------------------------------
+|
+| POST /api/content/:id/review
+|
+| Permission: content.review
+|
+| Records reviewer and review timestamp.
+|--------------------------------------------------------------------------
+*/
+
+router.post(
+  "/:id/review",
+  authenticateToken,
+  requirePermission("content.review"),
+  async (req, res) => {
+    try {
+      const {
+        context,
+        content,
+      } = await getScopedContent(req);
+
+      if (!content) {
+        return res.status(404).json({
+          success: false,
+          message: "Content not found",
+        });
+      }
+
+      if (content.status !== "IN_REVIEW") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Only content in review can be reviewed",
+        });
+      }
+
+      const updated =
+        await reviewContent(
+          context.organizationId,
+          context.workspaceId,
+          req.params.id,
+          req.user.id
+        );
+
+      return res.json({
+        success: true,
+        message:
+          "Content reviewed successfully",
+        data: updated,
+      });
+    } catch (error) {
+      console.error(
+        "Review content error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to review content",
+      });
+    }
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
+| APPROVE CONTENT
+|--------------------------------------------------------------------------
+|
+| POST /api/content/:id/approve
+|
+| Permission: content.approve
+|
+| IN_REVIEW → APPROVED
+|--------------------------------------------------------------------------
+*/
+
+router.post(
+  "/:id/approve",
+  authenticateToken,
+  requirePermission("content.approve"),
+  async (req, res) => {
+    try {
+      const {
+        context,
+        content,
+      } = await getScopedContent(req);
+
+      if (!content) {
+        return res.status(404).json({
+          success: false,
+          message: "Content not found",
+        });
+      }
+
+      if (content.status !== "IN_REVIEW") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Only content in review can be approved",
+        });
+      }
+
+      if (!content.reviewedById) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Content must be reviewed before approval",
+        });
+      }
+
+      const updated =
+        await approveContent(
+          context.organizationId,
+          context.workspaceId,
+          req.params.id,
+          req.user.id
+        );
+
+      return res.json({
+        success: true,
+        message:
+          "Content approved successfully",
+        data: updated,
+      });
+    } catch (error) {
+      console.error(
+        "Approve content error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to approve content",
+      });
+    }
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
+| PUBLISH CONTENT
+|--------------------------------------------------------------------------
+|
+| POST /api/content/:id/publish
+|
+| Permission: content.publish
+|
+| APPROVED → PUBLISHED
+|--------------------------------------------------------------------------
+*/
+
+router.post(
+  "/:id/publish",
+  authenticateToken,
+  requirePermission("content.publish"),
+  async (req, res) => {
+    try {
+      const {
+        context,
+        content,
+      } = await getScopedContent(req);
+
+      if (!content) {
+        return res.status(404).json({
+          success: false,
+          message: "Content not found",
+        });
+      }
+
+      if (content.status !== "APPROVED") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Only approved content can be published",
+        });
+      }
+
+      const updated =
+        await publishContent(
+          context.organizationId,
+          context.workspaceId,
+          req.params.id,
+          req.user.id
+        );
+
+      return res.json({
+        success: true,
+        message:
+          "Content published successfully",
+        data: updated,
+      });
+    } catch (error) {
+      console.error(
+        "Publish content error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to publish content",
+      });
+    }
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
+| ARCHIVE CONTENT
+|--------------------------------------------------------------------------
+|
+| DELETE /api/content/:id
+|
+| Permission: content.create
+|
+| Published content cannot be archived here.
+|--------------------------------------------------------------------------
+*/
+
 router.delete(
   "/:id",
   authenticateToken,
   requirePermission("content.create"),
   async (req, res) => {
     try {
-      const context = await getUserContext(req.user.id);
-
-      if (!context) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "User does not have an active organization and workspace.",
-        });
-      }
-
-      const content = await archiveContent({
-        id: req.params.id,
-        ...context,
-      });
+      const {
+        context,
+        content,
+      } = await getScopedContent(req);
 
       if (!content) {
         return res.status(404).json({
           success: false,
-          message: "Content not found.",
+          message: "Content not found",
         });
       }
 
+      if (content.status === "PUBLISHED") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Published content cannot be archived through this action",
+        });
+      }
+
+      const archived =
+        await archiveContent(
+          context.organizationId,
+          context.workspaceId,
+          req.params.id,
+          req.user.id
+        );
+
       return res.json({
         success: true,
-        message: "Content archived successfully.",
-        content,
+        message:
+          "Content archived successfully",
+        data: archived,
       });
     } catch (error) {
-      console.error("Archive content error:", error);
+      console.error(
+        "Archive content error:",
+        error
+      );
 
       return res.status(500).json({
         success: false,
-        message: "Unable to archive content.",
+        message:
+          error.message ||
+          "Failed to archive content",
       });
     }
   }

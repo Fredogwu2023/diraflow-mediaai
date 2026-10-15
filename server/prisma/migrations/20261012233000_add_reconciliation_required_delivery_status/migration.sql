@@ -1,0 +1,2 @@
+ALTER TYPE "DistributionDeliveryStatus"
+ADD VALUE 'RECONCILIATION_REQUIRED';
