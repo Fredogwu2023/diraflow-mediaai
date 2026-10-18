@@ -1,5 +1,6 @@
-﻿import "dotenv/config";
+import "dotenv/config";
 import { prisma } from "../lib/prisma.js";
+import { assessDistributionReadiness } from "../services/distribution-readiness.js";
 
 const pollIntervalMs = Math.max(
   5000,
@@ -70,36 +71,37 @@ async function runCycle() {
       },
     });
 
-    let adapterReady = 0;
     let adapterMissing = 0;
+    let adapterRegisteredButUnprocessable = 0;
 
     for (const delivery of dueDeliveries) {
-      const adapter = platformAdapters.get(delivery.platform);
+      const readiness = assessDistributionReadiness(
+        platformAdapters.get(delivery.platform)
+      );
 
-      if (!adapter) {
+      if (readiness.event === "delivery_deferred_no_adapter") {
         adapterMissing += 1;
-        log("delivery_deferred_no_adapter", {
-          deliveryId: delivery.id,
-          planId: delivery.plan.id,
-          platform: delivery.platform,
-          occurrenceNumber: delivery.occurrenceNumber,
-          scheduledAt: delivery.scheduledAt.toISOString(),
-          contentId: delivery.plan.content.id,
-          contentStatus: delivery.plan.content.status,
-          reason: "No publishing adapter is registered; delivery remains queued.",
-        });
-        continue;
+      } else {
+        adapterRegisteredButUnprocessable += 1;
       }
 
-      // No adapter is registered in this initial foundation.
-      // Actual claiming and publishing will be implemented separately.
-      adapterReady += 1;
+      log(readiness.event, {
+        deliveryId: delivery.id,
+        planId: delivery.plan.id,
+        platform: delivery.platform,
+        occurrenceNumber: delivery.occurrenceNumber,
+        scheduledAt: delivery.scheduledAt.toISOString(),
+        contentId: delivery.plan.content.id,
+        contentStatus: delivery.plan.content.status,
+        reason: readiness.reason,
+      });
     }
 
     log("cycle_completed", {
       eligibleDueDeliveries: dueDeliveries.length,
-      adapterReady,
+      processableDeliveries: 0,
       adapterMissing,
+      adapterRegisteredButUnprocessable,
       stateChangesMade: 0,
     });
   } catch (error) {

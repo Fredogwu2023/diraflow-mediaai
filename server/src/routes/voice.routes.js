@@ -1,12 +1,74 @@
 import express from "express";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { requirePermission } from "../middleware/authorization.middleware.js";
+import { prisma } from "../lib/prisma.js";
 
 const router = express.Router();
 
 const MAX_PREVIEW_CHARACTERS = 1200;
 const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb";
 const DEFAULT_MODEL_ID = "eleven_multilingual_v2";
+async function recordVoiceUsageEvent({
+  userId,
+  status,
+  mediaType = "VOICE",
+  characterCount = 0,
+  httpStatus = null,
+  errorCode = null,
+}) {
+  try {
+    const membership = await prisma.organizationMember.findFirst({
+      where: {
+        userId,
+        organization: { isActive: true },
+      },
+      select: {
+        organizationId: true,
+      },
+    });
+
+    if (!membership) {
+      console.error("Voice usage event skipped: no active organization.");
+      return;
+    }
+
+    const workspaceMembership = await prisma.workspaceMember.findFirst({
+      where: {
+        userId,
+        workspace: {
+          organizationId: membership.organizationId,
+          isActive: true,
+        },
+      },
+      select: {
+        workspaceId: true,
+      },
+    });
+
+    if (!workspaceMembership) {
+      console.error("Voice usage event skipped: no active workspace.");
+      return;
+    }
+
+    await prisma.voiceUsageEvent.create({
+      data: {
+        organizationId: membership.organizationId,
+        workspaceId: workspaceMembership.workspaceId,
+        userId,
+        mediaType,
+        provider: "elevenlabs",
+        operation: "voice_preview",
+        characterCount,
+        status,
+        httpStatus,
+        errorCode,
+      },
+    });
+  } catch {
+    // Usage logging must never interrupt the voice-preview response.
+    console.error("Voice usage event could not be recorded.");
+  }
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -24,6 +86,178 @@ const DEFAULT_MODEL_ID = "eleven_multilingual_v2";
 |--------------------------------------------------------------------------
 */
 
+router.get(
+  "/credits",
+  authenticateToken,
+  requirePermission("content.read"),
+  async (req, res) => {
+    try {
+      const membership = await prisma.organizationMember.findFirst({
+        where: {
+          userId: req.user.id,
+          organization: { isActive: true },
+        },
+        select: { organizationId: true },
+      });
+
+      if (!membership) {
+        return res.status(403).json({
+          success: false,
+          message: "No active organization membership was found.",
+        });
+      }
+
+      const organizationId = membership.organizationId;
+
+      const account = await prisma.creditAccount.findUnique({
+        where: { organizationId },
+        select: {
+          balance: true,
+          lifetimeCredited: true,
+          lifetimeDebited: true,
+          status: true,
+          updatedAt: true,
+        },
+      });
+
+      const transactions = account
+        ? await prisma.creditTransaction.findMany({
+            where: { organizationId },
+            orderBy: { createdAt: "desc" },
+            take: 20,
+            select: {
+              id: true,
+              type: true,
+              amount: true,
+              balanceAfter: true,
+              referenceType: true,
+              referenceId: true,
+              description: true,
+              createdAt: true,
+            },
+          })
+        : [];
+
+      return res.json({
+        success: true,
+        scope: "active_organization",
+        credits: {
+          balance: account?.balance ?? 0,
+          lifetimeCredited: account?.lifetimeCredited ?? 0,
+          lifetimeDebited: account?.lifetimeDebited ?? 0,
+          status: account?.status ?? "NOT_INITIALIZED",
+          updatedAt: account?.updatedAt ?? null,
+        },
+        transactions,
+      });
+    } catch (error) {
+      console.error("Credit summary query failed:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Unable to retrieve credit information.",
+      });
+    }
+  }
+);
+router.get(
+  "/usage",
+  authenticateToken,
+  requirePermission("content.read"),
+  async (req, res) => {
+    try {
+      const membership = await prisma.organizationMember.findFirst({
+        where: {
+          userId: req.user.id,
+          organization: { isActive: true },
+        },
+        select: {
+          organizationId: true,
+        },
+      });
+
+      if (!membership) {
+        return res.status(403).json({
+          success: false,
+          message: "No active organization membership was found.",
+        });
+      }
+
+      const workspaceMembership = await prisma.workspaceMember.findFirst({
+        where: {
+          userId: req.user.id,
+          workspace: {
+            organizationId: membership.organizationId,
+            isActive: true,
+          },
+        },
+        select: {
+          workspaceId: true,
+        },
+      });
+
+      if (!workspaceMembership) {
+        return res.status(403).json({
+          success: false,
+          message: "No active workspace membership was found.",
+        });
+      }
+
+      const scope = {
+        organizationId: membership.organizationId,
+        workspaceId: workspaceMembership.workspaceId,
+      };
+      const voiceScope = { ...scope, mediaType: "VOICE" };
+
+      const [total, succeeded, failed, blocked, recentEvents] =
+        await Promise.all([
+          prisma.voiceUsageEvent.count({ where: voiceScope }),
+          prisma.voiceUsageEvent.count({
+            where: { ...voiceScope, status: "SUCCEEDED" },
+          }),
+          prisma.voiceUsageEvent.count({
+            where: { ...voiceScope, status: "FAILED" },
+          }),
+          prisma.voiceUsageEvent.count({
+            where: { ...voiceScope, status: "BLOCKED" },
+          }),
+          prisma.voiceUsageEvent.findMany({
+            where: voiceScope,
+            orderBy: { createdAt: "desc" },
+            take: 20,
+            select: {
+              id: true,
+              operation: true,
+              mediaType: true,
+              characterCount: true,
+              status: true,
+              httpStatus: true,
+              errorCode: true,
+              createdAt: true,
+            },
+          }),
+        ]);
+
+      return res.json({
+        success: true,
+        scope: "active_workspace",
+        provider: "elevenlabs",
+        mediaType: "VOICE",
+        usage: { total, succeeded, failed, blocked },
+        subscriptionAllowance: {
+          status: "NOT_CONNECTED",
+          message: "Subscriber allowance is not connected yet.",
+        },
+        recentEvents,
+      });
+    } catch (error) {
+      console.error("Voice usage query failed:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Unable to retrieve voice usage.",
+      });
+    }
+  }
+);
 router.get(
   "/available",
   authenticateToken,
@@ -96,11 +330,20 @@ router.post(
   authenticateToken,
   requirePermission("content.read"),
   async (req, res) => {
+    let attemptedCharacterCount = 0;
     try {
       const apiKey =
         process.env.ELEVENLABS_API_KEY;
 
       if (!apiKey) {
+        await recordVoiceUsageEvent({
+          userId: req.user.id,
+          status: "BLOCKED",
+          characterCount: 0,
+          httpStatus: 503,
+          errorCode: "provider_not_configured",
+        });
+
         return res.status(503).json({
           success: false,
           message:
@@ -167,6 +410,8 @@ router.post(
         });
       }
 
+      attemptedCharacterCount = previewText.length;
+
       const elevenLabsResponse =
         await fetch(
           `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(
@@ -194,12 +439,6 @@ router.post(
         const errorText =
           await elevenLabsResponse.text();
 
-        console.error(
-          "ElevenLabs TTS error:",
-          elevenLabsResponse.status,
-          errorText
-        );
-
         let providerError = {};
 
         try {
@@ -222,6 +461,18 @@ router.post(
           providerMessage.includes("quota") ||
           providerMessage.includes("credits remaining");
 
+        await recordVoiceUsageEvent({
+          userId: req.user.id,
+          status: quotaExceeded ? "BLOCKED" : "FAILED",
+          characterCount: previewText.length,
+          httpStatus: elevenLabsResponse.status,
+          errorCode: quotaExceeded
+            ? "quota_exceeded"
+            : elevenLabsResponse.status === 429
+              ? "rate_limited"
+              : "provider_error",
+        });
+
         const userMessage = quotaExceeded
           ? "Voice previews are temporarily unavailable because the ElevenLabs preview allowance has been exhausted. You can continue using DiraFlow; previews can resume when the provider allowance is restored."
           : elevenLabsResponse.status === 429
@@ -240,6 +491,14 @@ router.post(
           await elevenLabsResponse.arrayBuffer()
         );
 
+      await recordVoiceUsageEvent({
+        userId: req.user.id,
+        status: "SUCCEEDED",
+        characterCount: previewText.length,
+        httpStatus: 200,
+        errorCode: null,
+      });
+
       res.set({
         "Content-Type": "audio/mpeg",
         "Content-Length": audioBuffer.length,
@@ -247,11 +506,18 @@ router.post(
       });
 
       return res.send(audioBuffer);
-    } catch (error) {
-      console.error(
-        "Voice preview error:",
-        error
-      );
+    } catch {
+      if (attemptedCharacterCount > 0) {
+        await recordVoiceUsageEvent({
+          userId: req.user.id,
+          status: "FAILED",
+          characterCount: attemptedCharacterCount,
+          httpStatus: 500,
+          errorCode: "request_error",
+        });
+      }
+
+      console.error("Voice preview request failed.");
 
       return res.status(500).json({
         success: false,

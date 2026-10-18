@@ -4733,3 +4733,123 @@ p {
     padding: 16px;
   }
 }
+
+/* Distribution Agent saved plans */
+.distribution-saved-plans {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 24px;
+  min-width: 0;
+}
+.distribution-plans-heading,
+.distribution-plan-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.distribution-plans-heading h2,
+.distribution-plan-title h3,
+.distribution-deliveries h4 {
+  margin: 0 0 8px;
+}
+.distribution-plan-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border-color, #d8dee8);
+  border-radius: 12px;
+}
+.distribution-plan-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.distribution-plan-title p,
+.distribution-plan-notice {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.distribution-plan-status,
+.distribution-delivery-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #344054;
+  font-size: 0.75rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.distribution-plan-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+.distribution-plan-details div { min-width: 0; }
+.distribution-plan-details dt {
+  margin-bottom: 4px;
+  font-size: 0.8rem;
+  opacity: 0.72;
+}
+.distribution-plan-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.distribution-deliveries ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.distribution-deliveries li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  overflow-wrap: anywhere;
+}
+.distribution-plan-notice,
+.distribution-plans-empty {
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface-muted, #f5f7fa);
+}
+.status-cancelled,
+.status-failed {
+  background: #fff0f0;
+  color: #8f2525;
+}
+.status-published,
+.status-completed {
+  background: #edf8f0;
+  color: #24643b;
+}
+.status-processing {
+  background: #fff6e5;
+  color: #875b13;
+}
+@media (max-width: 680px) {
+  .distribution-plans-heading,
+  .distribution-plan-heading {
+    flex-direction: column;
+  }
+  .distribution-plan-details {
+    grid-template-columns: 1fr;
+  }
+  .distribution-deliveries li {
+    align-items: flex-start;
+  }
+}

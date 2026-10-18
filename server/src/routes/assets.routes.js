@@ -1,5 +1,9 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import multer from "multer";
 import { prisma } from "../lib/prisma.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { requirePermission } from "../middleware/authorization.middleware.js";
@@ -11,6 +15,11 @@ import {
 } from "../services/storage.service.js";
 
 const router = express.Router();
+
+const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const LOCAL_STORAGE_ROOT = path.join(PROJECT_ROOT, "storage", "media-assets");
+const isLocalStorage = () =>
+  process.env.MEDIA_STORAGE_MODE?.trim().toLowerCase() === "local";
 
 const MAX_SIZE_BYTES = 100 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([
@@ -27,6 +36,24 @@ const ALLOWED_TYPES = new Set([
   "application/pdf",
   "text/plain",
 ]);
+
+const localUploadParser = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_SIZE_BYTES },
+  fileFilter(_req, file, callback) {
+    if (!ALLOWED_TYPES.has(file.mimetype)) {
+      return callback(new Error("This file type is not supported."));
+    }
+    callback(null, true);
+  },
+});
+
+function localFilePath(assetId) {
+  if (typeof assetId !== "string" || !/^[a-zA-Z0-9_-]+$/.test(assetId)) {
+    throw new Error("Invalid asset identifier.");
+  }
+  return path.join(LOCAL_STORAGE_ROOT, assetId);
+}
 
 async function getUserContext(userId) {
   const membership = await prisma.organizationMember.findFirst({
@@ -171,6 +198,14 @@ router.post(
         },
       });
 
+      if (isLocalStorage()) {
+        return res.status(201).json({
+          success: true,
+          asset: publicAsset(asset),
+          uploadMode: "local",
+        });
+      }
+
       const uploadUrl = await createUploadUrl({
         key: storageKey,
         contentType: mimeType,
@@ -181,6 +216,7 @@ router.post(
         success: true,
         asset: publicAsset(asset),
         uploadUrl,
+        uploadMode: "s3",
         expiresInSeconds: 300,
         requiredHeaders: { "Content-Type": mimeType },
       });
@@ -207,7 +243,120 @@ router.post(
 );
 
 router.post(
-  "/:id/complete",
+  "/:id/local-upload",
+  authenticateToken,
+  requirePermission("content.create"),
+  localUploadParser.single("file"),
+  async (req, res) => {
+    let targetPath;
+    let fileWritten = false;
+
+    try {
+      if (!isLocalStorage()) {
+        return res.status(404).json({
+          success: false,
+          message: "Local uploads are disabled.",
+        });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          message: "Choose a supported file to upload.",
+        });
+      }
+
+      const context = await getUserContext(req.user.id);
+      const asset = await prisma.mediaAsset.findFirst({
+        where: {
+          id: req.params.id,
+          ...context,
+          uploadedById: req.user.id,
+          status: "PENDING_UPLOAD",
+        },
+      });
+
+      if (!asset) {
+        return res.status(404).json({
+          success: false,
+          message: "Pending asset not found for this user and workspace.",
+        });
+      }
+
+      if (
+        safeFilename(file.originalname) !== asset.originalFilename ||
+        file.mimetype !== asset.mimeType ||
+        file.size !== Number(asset.sizeBytes) ||
+        file.size < 1 ||
+        file.size > MAX_SIZE_BYTES
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Uploaded file metadata does not match the pending asset.",
+        });
+      }
+
+      targetPath = localFilePath(asset.id);
+      await fs.mkdir(LOCAL_STORAGE_ROOT, { recursive: true });
+      await fs.writeFile(targetPath, file.buffer, { flag: "w" });
+      fileWritten = true;
+
+      const updated = await prisma.mediaAsset.updateMany({
+        where: {
+          id: asset.id,
+          ...context,
+          uploadedById: req.user.id,
+          status: "PENDING_UPLOAD",
+        },
+        data: { status: "AVAILABLE" },
+      });
+
+      if (updated.count !== 1) {
+        await fs.unlink(targetPath).catch(() => {});
+        fileWritten = false;
+        return res.status(409).json({
+          success: false,
+          message: "Asset state changed during upload. Refresh the library before retrying.",
+        });
+      }
+
+      const available = await prisma.mediaAsset.findUnique({
+        where: { id: asset.id },
+      });
+
+      return res.json({
+        success: true,
+        asset: publicAsset(available),
+      });
+    } catch (error) {
+      if (fileWritten && targetPath) {
+        await fs.unlink(targetPath).catch(() => {});
+      }
+      if (error.message?.includes("membership")) {
+        return res.status(403).json({
+          success: false,
+          message: error.message,
+        });
+      }
+      if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({
+          success: false,
+          message: "The file exceeds the 100 MB limit.",
+        });
+      }
+      if (error.message?.includes("supported file type")) {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+      }
+      return handleError(res, error, "local upload");
+    }
+  }
+);
+
+router.post("/:id/complete",
   authenticateToken,
   requirePermission("content.create"),
   async (req, res) => {
@@ -303,7 +452,62 @@ router.get(
 );
 
 router.get(
-  "/:id/download-url",
+  "/:id/file",
+  authenticateToken,
+  requirePermission("content.read"),
+  async (req, res) => {
+    try {
+      if (!isLocalStorage()) {
+        return res.status(404).json({
+          success: false,
+          message: "Local file access is disabled.",
+        });
+      }
+
+      const context = await getUserContext(req.user.id);
+      const asset = await prisma.mediaAsset.findFirst({
+        where: {
+          id: req.params.id,
+          ...context,
+          status: "AVAILABLE",
+        },
+      });
+
+      if (!asset) {
+        return res.status(404).json({
+          success: false,
+          message: "Available asset not found in this workspace.",
+        });
+      }
+
+      const buffer = await fs.readFile(localFilePath(asset.id));
+      res.set({
+        "Content-Type": asset.mimeType,
+        "Content-Length": String(buffer.length),
+        "Content-Disposition": "inline",
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private, no-store",
+      });
+      return res.send(buffer);
+    } catch (error) {
+      if (error.code === "ENOENT") {
+        return res.status(404).json({
+          success: false,
+          message: "The local file is missing from development storage.",
+        });
+      }
+      if (error.message?.includes("membership")) {
+        return res.status(403).json({
+          success: false,
+          message: error.message,
+        });
+      }
+      return handleError(res, error, "local file retrieval");
+    }
+  }
+);
+
+router.get("/:id/download-url",
   authenticateToken,
   requirePermission("content.read"),
   async (req, res) => {
@@ -324,6 +528,14 @@ router.get(
         });
       }
 
+      if (isLocalStorage()) {
+        return res.json({
+          success: true,
+          localFile: true,
+          fileUrl: `/api/assets/${encodeURIComponent(asset.id)}/file`,
+        });
+      }
+
       const downloadUrl = await createDownloadUrl({
         key: asset.storageKey,
         expiresInSeconds: 300,
@@ -332,6 +544,7 @@ router.get(
       return res.json({
         success: true,
         downloadUrl,
+        localFile: false,
         expiresInSeconds: 300,
       });
     } catch (error) {
@@ -371,7 +584,13 @@ router.delete(
       }
 
       if (asset.status === "AVAILABLE") {
-        await deleteStoredObject({ key: asset.storageKey });
+        if (isLocalStorage()) {
+          await fs.unlink(localFilePath(asset.id)).catch((error) => {
+            if (error.code !== "ENOENT") throw error;
+          });
+        } else {
+          await deleteStoredObject({ key: asset.storageKey });
+        }
       }
 
       const updated = await prisma.mediaAsset.updateMany({

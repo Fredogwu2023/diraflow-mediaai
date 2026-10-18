@@ -14,7 +14,82 @@ import royaltyManagementImage from './assets/09-monetisation-royalty-management.
 import analyticsPerformanceImage from './assets/10-analytics-performance.jpg'
 import './App.css'
 
-const API_BASE_URL = 'http://localhost:5000'
+import VideoStudio from './assets/VideoStudio.jsx'
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '')
+
+function zonedDateTimeToIso(dateValue, timeValue, timeZone) {
+  const dateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue || '')
+  const timeParts = /^(\d{2}):(\d{2})$/.exec(timeValue || '')
+
+  if (!dateParts || !timeParts) {
+    throw new Error('Enter a valid publication date and time.')
+  }
+
+  const [, yearText, monthText, dayText] = dateParts
+  const [, hourText, minuteText] = timeParts
+  const desired = {
+    year: Number(yearText),
+    month: Number(monthText),
+    day: Number(dayText),
+    hour: Number(hourText),
+    minute: Number(minuteText),
+  }
+
+  const desiredUtc = Date.UTC(
+    desired.year, desired.month - 1, desired.day,
+    desired.hour, desired.minute, 0
+  )
+
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+
+  let guess = desiredUtc
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(guess))
+        .filter((part) => part.type !== 'literal')
+        .map((part) => [part.type, Number(part.value)])
+    )
+
+    const representedUtc = Date.UTC(
+      parts.year, parts.month - 1, parts.day,
+      parts.hour, parts.minute, parts.second
+    )
+
+    const difference = desiredUtc - representedUtc
+    if (difference === 0) break
+    guess += difference
+  }
+
+  const check = Object.fromEntries(
+    formatter.formatToParts(new Date(guess))
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, Number(part.value)])
+  )
+
+  if (
+    check.year !== desired.year ||
+    check.month !== desired.month ||
+    check.day !== desired.day ||
+    check.hour !== desired.hour ||
+    check.minute !== desired.minute
+  ) {
+    throw new Error(
+      'That local time does not exist in the selected timezone because of a clock change. Choose another time.'
+    )
+  }
+
+  return new Date(guess).toISOString()
+}
 
 const navigation = [
   { label: 'Dashboard', icon: 'dashboard' },
@@ -26,6 +101,7 @@ const navigation = [
   { label: 'Distribution Agent', icon: 'analytics' },
   { label: 'Projects', icon: 'projects' },
   { label: 'Media', icon: 'media' },
+  { label: 'Studio Theatre', icon: 'theatre' },
   { label: 'Voices', icon: 'voices' },
   { label: 'Brand Kit', icon: 'brand' },
   { label: 'Analytics', icon: 'analytics' },
@@ -42,6 +118,7 @@ function SidebarIcon({ name }) {
     media: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9" r="1.5" /><path d="m4 17 5-5 3 3 3-4 5 6" /></>,
     voices: <><rect x="9" y="3" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" /></>,
     brand: <><path d="m12 3 2.5 5.5L20 11l-5.5 2.5L12 19l-2.5-5.5L4 11l5.5-2.5z" /><path d="m19 15 1.2 2.8L23 19l-2.8 1.2L19 23l-1.2-2.8L15 19l2.8-1.2z" /></>,
+    theatre: <><rect x="3" y="4" width="18" height="15" rx="2" /><path d="m10 8 5 3.5-5 3.5z" /><path d="M8 22h8M12 19v3" /></>,
     analytics: <><path d="M4 20V11M10 20V5M16 20v-8M22 20H2" /></>,
     podcast: <><circle cx="12" cy="12" r="3" /><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.5 5.5a9 9 0 0 0 0 13M18.5 5.5a9 9 0 0 1 0 13" /></>,
     receptionist: <><circle cx="12" cy="8" r="4" /><path d="M5 21v-2a7 7 0 0 1 14 0v2M19 8h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2M5 8H3a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2" /></>,
@@ -1069,9 +1146,40 @@ function TypeBadge({ type }) {
   )
 }
 
+function getYouTubeVideoId(value) {
+  try {
+    const parsed = new URL(value.trim())
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '')
+    let videoId = ''
+
+    if (hostname === 'youtu.be') {
+      videoId = parsed.pathname.split('/').filter(Boolean)[0] || ''
+    } else if (
+      ['youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtube-nocookie.com'].includes(hostname)
+    ) {
+      if (parsed.pathname === '/watch') {
+        videoId = parsed.searchParams.get('v') || ''
+      } else {
+        const match = parsed.pathname.match(/^\/(?:embed|shorts|live)\/([^/?]+)/)
+        videoId = match?.[1] || ''
+      }
+    }
+
+    return /^[A-Za-z0-9_-]{11}$/.test(videoId) ? videoId : null
+  } catch {
+    return null
+  }
+}
+
 function App() {
   const [activePage, setActivePage] = useState('Dashboard')
   const [apiStatus, setApiStatus] = useState('checking')
+  const [voiceUsage, setVoiceUsage] = useState(null)
+  const [voiceUsageLoading, setVoiceUsageLoading] = useState(false)
+  const [voiceUsageError, setVoiceUsageError] = useState('')
+  const [creditLedger, setCreditLedger] = useState(null)
+  const [creditLedgerLoading, setCreditLedgerLoading] = useState(false)
+  const [creditLedgerError, setCreditLedgerError] = useState('')
 
   const [currentUser, setCurrentUser] = useState(null)
 
@@ -1100,8 +1208,27 @@ function App() {
   const [distributionPlatforms, setDistributionPlatforms] = useState([])
   const [distributionFeedback, setDistributionFeedback] = useState('')
   const [distributionError, setDistributionError] = useState('')
-const [contentLoading, setContentLoading] = useState(false)
+  const [distributionPlans, setDistributionPlans] = useState([])
+  const [distributionPlansLoading, setDistributionPlansLoading] = useState(false)
+  const [distributionPlansError, setDistributionPlansError] = useState('')
+  const [distributionSubmitting, setDistributionSubmitting] = useState(false)
+  const [distributionCancellingId, setDistributionCancellingId] = useState('')
+  const [contentLoading, setContentLoading] = useState(false)
   const [contentError, setContentError] = useState('')
+  const [mediaAssets, setMediaAssets] = useState([])
+  const [mediaLoading, setMediaLoading] = useState(false)
+  const [mediaUploading, setMediaUploading] = useState(false)
+  const [mediaError, setMediaError] = useState('')
+  const [mediaFeedback, setMediaFeedback] = useState('')
+  const [mediaPreview, setMediaPreview] = useState(null)
+  const [mediaRestoreAttempted, setMediaRestoreAttempted] = useState(false)
+  const [externalVideoUrl, setExternalVideoUrl] = useState('')
+
+  useEffect(() => {
+    if (!mediaPreview?.objectUrl) return undefined
+    const objectUrl = mediaPreview.url
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [mediaPreview?.url, mediaPreview?.objectUrl])
 
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
@@ -1131,6 +1258,328 @@ const [contentLoading, setContentLoading] = useState(false)
   const [script, setScript] = useState(
     'Welcome to DiraFlow MediaAI. Today, I want to share how intelligent digital communication can help businesses transform ideas, information and expertise into professional media experiences.'
   )
+
+  const [scriptUploadLoading, setScriptUploadLoading] = useState(false)
+  const [scriptUploadError, setScriptUploadError] = useState('')
+  const [scriptUploadMessage, setScriptUploadMessage] = useState('')
+  const [pendingExtractedScript, setPendingExtractedScript] = useState(null)
+
+  async function loadMediaAssets({ preserveError = false } = {}) {
+    setMediaLoading(true)
+    if (!preserveError) setMediaError('')
+
+    try {
+      const payload = await apiRequest('/api/assets/')
+      const assets = Array.isArray(payload?.assets) ? payload.assets : []
+      setMediaAssets(assets)
+      return assets
+    } catch (error) {
+      setMediaError(error.message || 'Unable to load the media library.')
+    } finally {
+      setMediaLoading(false)
+    }
+  }
+
+  async function handleMediaUpload(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setMediaError('')
+    setMediaFeedback('')
+
+    const allowedTypes = new Set([
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+      'video/mp4', 'video/webm',
+      'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/ogg',
+      'application/pdf', 'text/plain',
+    ])
+
+    if (!allowedTypes.has(file.type)) {
+      setMediaError('This file type is not supported. Choose an accepted image, audio, video, PDF or plain-text file.')
+      event.target.value = ''
+      return
+    }
+
+    if (file.size < 1 || file.size > 100 * 1024 * 1024) {
+      setMediaError('Choose a non-empty file no larger than 100 MB.')
+      event.target.value = ''
+      return
+    }
+
+    setMediaUploading(true)
+    setMediaFeedback('Requesting an upload request...')
+
+    try {
+      const request = await apiRequest('/api/assets/upload-url', {
+        method: 'POST',
+        body: JSON.stringify({
+          originalFilename: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+        }),
+      })
+
+      if (!request?.success || !request?.asset?.id) {
+        throw new Error('The server did not return a valid upload request.')
+      }
+
+      if (request.uploadMode === 'local') {
+        setMediaFeedback('Uploading file to local development storage...')
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const token = getStoredToken()
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        const response = await fetch(
+          `${API_BASE_URL}/api/assets/${encodeURIComponent(request.asset.id)}/local-upload`,
+          { method: 'POST', headers, body: formData }
+        )
+
+        let payload = null
+        try {
+          payload = await response.json()
+        } catch {
+          payload = null
+        }
+
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.message || `Local upload failed (${response.status}).`)
+        }
+      } else {
+        if (!request.uploadUrl) {
+          throw new Error('The server did not return a storage upload URL.')
+        }
+
+        setMediaFeedback('Uploading file to cloud storage...')
+        const response = await fetch(request.uploadUrl, {
+          method: 'PUT',
+          headers: request.requiredHeaders || { 'Content-Type': file.type },
+          body: file,
+        })
+
+        if (!response.ok) {
+          throw new Error(`Storage upload failed (${response.status}). Refresh the library and check the asset status before retrying.`)
+        }
+
+        setMediaFeedback('Verifying the stored file...')
+        const completion = await apiRequest(
+          `/api/assets/${encodeURIComponent(request.asset.id)}/complete`,
+          { method: 'POST' }
+        )
+
+        if (!completion?.success) {
+          throw new Error('The file was uploaded but the server could not verify it.')
+        }
+      }
+
+      setMediaFeedback(`Uploaded and verified: ${file.name}`)
+      await loadMediaAssets()
+    } catch (error) {
+      setMediaError(error.message || 'The upload could not be completed.')
+      setMediaFeedback('')
+      await loadMediaAssets({ preserveError: true })
+    } finally {
+      setMediaUploading(false)
+      event.target.value = ''
+    }
+  }
+
+  function handleExternalVideoSubmit(event) {
+    event.preventDefault()
+    setMediaError('')
+    setMediaFeedback('')
+
+    const originalUrl = externalVideoUrl.trim()
+    const videoId = getYouTubeVideoId(originalUrl)
+
+    if (!videoId) {
+      setMediaError(
+        'Enter a valid YouTube URL for a watch page, youtu.be link, Shorts, Live or embed video.'
+      )
+      return
+    }
+
+    localStorage.removeItem('diraflow_studio_theatre_asset_id')
+    localStorage.setItem('diraflow_studio_theatre_external_video', originalUrl)
+    sessionStorage.setItem('diraflow_studio_theatre_watching_video', '1')
+
+    setMediaPreview({
+      id: `external-youtube-${videoId}`,
+      originalFilename: `YouTube video (${videoId})`,
+      mimeType: 'video/youtube',
+      url: `https://www.youtube-nocookie.com/embed/${videoId}`,
+      externalUrl: originalUrl,
+      external: true,
+      objectUrl: false,
+    })
+
+    setExternalVideoUrl('')
+    setActivePage('Studio Theatre')
+  }
+
+  async function handleMediaPreview(asset) {
+    setMediaError('')
+    setMediaFeedback('Requesting a secure file link...')
+
+    try {
+      const payload = await apiRequest(
+        `/api/assets/${encodeURIComponent(asset.id)}/download-url`
+      )
+
+      if (!payload?.success) {
+        throw new Error('The server did not return a valid file link.')
+      }
+
+      if (payload.localFile && payload.fileUrl) {
+        setMediaFeedback('Loading protected local file...')
+        const token = getStoredToken()
+        const headers = token ? { Authorization: `Bearer ${token}` } : {}
+        const response = await fetch(`${API_BASE_URL}${payload.fileUrl}`, { headers })
+
+        if (!response.ok) {
+          let errorPayload = null
+          try {
+            errorPayload = await response.json()
+          } catch {
+            errorPayload = null
+          }
+          throw new Error(
+            errorPayload?.message || `File retrieval failed (${response.status}).`
+          )
+        }
+
+        const objectUrl = URL.createObjectURL(await response.blob())
+        setMediaPreview({ ...asset, url: objectUrl, objectUrl: true })
+      } else {
+        if (!payload.downloadUrl) {
+          throw new Error('The server did not return a download link.')
+        }
+        setMediaPreview({ ...asset, url: payload.downloadUrl, objectUrl: false })
+      }
+
+      localStorage.removeItem('diraflow_studio_theatre_external_video')
+      localStorage.setItem('diraflow_studio_theatre_asset_id', asset.id)
+
+      if ((asset.mimeType || '').startsWith('video/')) {
+        sessionStorage.setItem('diraflow_studio_theatre_watching_video', '1')
+      } else {
+        sessionStorage.removeItem('diraflow_studio_theatre_watching_video')
+      }
+      setMediaFeedback('')
+      setActivePage('Studio Theatre')
+    } catch (error) {
+      setMediaFeedback('')
+      setMediaError(error.message || 'Unable to open this asset.')
+    }
+  }
+
+  async function handleMediaDelete(asset) {
+    const confirmed = window.confirm(
+      `Delete "${asset.originalFilename}"? This action removes the stored file when applicable.`
+    )
+
+    if (!confirmed) return
+
+    setMediaError('')
+    setMediaFeedback('Deleting asset...')
+
+    try {
+      await apiRequest(`/api/assets/${encodeURIComponent(asset.id)}`, {
+        method: 'DELETE',
+      })
+
+      if (mediaPreview?.id === asset.id) {
+        setMediaPreview(null)
+        localStorage.removeItem('diraflow_studio_theatre_asset_id')
+      }
+
+      setMediaFeedback(`Deleted: ${asset.originalFilename}`)
+      await loadMediaAssets()
+    } catch (error) {
+      setMediaFeedback('')
+      setMediaError(error.message || 'Unable to delete this asset.')
+    }
+  }
+  async function handleScriptDocumentUpload(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setScriptUploadError('')
+    setScriptUploadMessage('')
+    setPendingExtractedScript(null)
+
+    const allowedExtensions = ['.docx', '.pdf', '.txt']
+    const dot = file.name.lastIndexOf('.')
+    const extension = dot >= 0 ? file.name.slice(dot).toLowerCase() : ''
+    const maxBytes = 50 * 1024 * 1024
+
+    if (!allowedExtensions.includes(extension)) {
+      setScriptUploadError('Unsupported format. Choose a .docx, .pdf, or .txt document.')
+      event.target.value = ''
+      return
+    }
+
+    if (file.size > maxBytes) {
+      setScriptUploadError('This document exceeds the 50 MB upload limit.')
+      event.target.value = ''
+      return
+    }
+
+    if (file.size === 0) {
+      setScriptUploadError('The selected file is empty.')
+      event.target.value = ''
+      return
+    }
+
+    setScriptUploadLoading(true)
+    setScriptUploadMessage('Extracting document text. Large files may take some time.')
+
+    try {
+      const formData = new FormData()
+      formData.append('document', file)
+
+      const token = getStoredToken()
+      const response = await fetch(`${API_BASE_URL}/api/scripts/extract-script`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      })
+
+      let payload = null
+      try {
+        payload = await response.json()
+      } catch {
+        payload = null
+      }
+
+      if (!response.ok || !payload?.success || typeof payload.text !== 'string') {
+        throw new Error(payload?.message || `Document extraction failed (${response.status}).`)
+      }
+
+      setPendingExtractedScript({
+        fileName: payload.fileName || file.name,
+        text: payload.text,
+        wordCount: payload.wordCount,
+      })
+      setScriptUploadMessage('Text extracted. Review it below before replacing your current script.')
+    } catch (error) {
+      setScriptUploadMessage('')
+      setScriptUploadError(
+        error.message || 'Could not extract this document. Check the file and try again.'
+      )
+    } finally {
+      setScriptUploadLoading(false)
+      event.target.value = ''
+    }
+  }
+
+  function applyExtractedScript() {
+    if (!pendingExtractedScript) return
+    setScript(pendingExtractedScript.text)
+    setScriptUploadMessage(`Script replaced with text from ${pendingExtractedScript.fileName}. Review it before production.`)
+    setScriptUploadError('')
+    setPendingExtractedScript(null)
+  }
 
   const [scriptObjective, setScriptObjective] = useState(
     'Business presentation'
@@ -1265,7 +1714,7 @@ const [contentLoading, setContentLoading] = useState(false)
     },
     French: {
       speed: 0.85,
-      sample: 'Bonjour et bienvenue sur DiraFlow MediaAI. Ceci est un aperçu vocal.',
+      sample: 'Bonjour et bienvenue sur DiraFlow MediaAI. Ceci est un aperÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§u vocal.',
     },
     Spanish: {
       speed: 0.85,
@@ -1273,7 +1722,7 @@ const [contentLoading, setContentLoading] = useState(false)
     },
     Portuguese: {
       speed: 0.7,
-      sample: 'Olá e bem-vindo ao DiraFlow MediaAI. Esta é uma prévia de voz.',
+      sample: 'OlÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ e bem-vindo ao DiraFlow MediaAI. Esta ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© uma prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©via de voz.',
     },
     Swahili: {
       speed: 0.7,
@@ -1281,7 +1730,7 @@ const [contentLoading, setContentLoading] = useState(false)
     },
     Arabic: {
       speed: 0.75,
-      sample: 'مرحبًا بك في DiraFlow MediaAI. هذه معاينة للصوت.',
+      sample: 'ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â±ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â­ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â¨ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â§ ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â¨ÃƒÆ’Ã¢â€žÂ¢Ãƒâ€ Ã¢â‚¬â„¢ ÃƒÆ’Ã¢â€žÂ¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â€žÂ¢Ãƒâ€¦Ã‚Â  DiraFlow MediaAI. ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â¹ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â€žÂ¢Ãƒâ€¦Ã‚Â ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â© ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚ÂµÃƒÆ’Ã¢â€žÂ¢Ãƒâ€¹Ã¢â‚¬Â ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Âª.',
     },
     Hausa: {
       speed: 0.7,
@@ -1289,11 +1738,11 @@ const [contentLoading, setContentLoading] = useState(false)
     },
     Yoruba: {
       speed: 0.7,
-      sample: 'Ẹ káàbọ̀ sí DiraFlow MediaAI. Èyí ni àyẹ̀wò ohùn.',
+      sample: 'ÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â¸ kÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â bÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚ÂÃƒÆ’Ã…â€™ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ DiraFlow MediaAI. ÃƒÆ’Ã†â€™Ãƒâ€¹Ã¢â‚¬Â yÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ ni ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â yÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â¹ÃƒÆ’Ã…â€™ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬wÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â² ohÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¹n.',
     },
     Igbo: {
       speed: 0.7,
-      sample: 'Nnọọ na DiraFlow MediaAI. Nke a bụ nnwale olu.',
+      sample: 'NnÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â na DiraFlow MediaAI. Nke a bÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â¥ nnwale olu.',
     },
   }
   const previewVoice = async (voice, customText = '') => {
@@ -1564,6 +2013,10 @@ const [contentLoading, setContentLoading] = useState(false)
     setShowLanding(true)
     setContent([])
     setSelectedContent(null)
+    setDistributionPlans([])
+    setDistributionPlansError('')
+    setDistributionError('')
+    setDistributionFeedback('')
     setActivePage('Dashboard')
     setContentError('')
     setFormMessage('')
@@ -1591,6 +2044,94 @@ const [contentLoading, setContentLoading] = useState(false)
     }
   }
 
+  async function loadDistributionPlans() {
+    setDistributionPlansLoading(true)
+    setDistributionPlansError('')
+
+    try {
+      const response = await apiRequest('/api/distribution')
+
+      if (!response?.success || !Array.isArray(response?.data)) {
+        throw new Error('The Distribution Agent returned an unexpected response.')
+      }
+
+      setDistributionPlans(response.data)
+    } catch (error) {
+      setDistributionPlansError(
+        error.message || 'Unable to load distribution plans.'
+      )
+    } finally {
+      setDistributionPlansLoading(false)
+    }
+  }
+
+  async function cancelDistributionPlan(planId) {
+    if (!planId || distributionCancellingId) return
+
+    setDistributionCancellingId(planId)
+    setDistributionPlansError('')
+    setDistributionFeedback('')
+
+    try {
+      const response = await apiRequest(
+        `/api/distribution/${encodeURIComponent(planId)}/cancel`,
+        { method: 'POST' }
+      )
+
+      if (!response?.success) {
+        throw new Error(response?.message || 'Unable to cancel this plan.')
+      }
+
+      setDistributionFeedback(response.message || 'Distribution plan cancelled.')
+      await loadDistributionPlans()
+    } catch (error) {
+      setDistributionPlansError(
+        error.message || 'Unable to cancel this plan. Please try again.'
+      )
+    } finally {
+      setDistributionCancellingId('')
+    }
+  }
+  async function loadVoiceUsage() {
+    setVoiceUsageLoading(true)
+    setVoiceUsageError('')
+
+    try {
+      const data = await apiRequest('/api/voices/usage')
+
+      if (!data?.success) {
+        throw new Error('The usage service returned an unexpected response.')
+      }
+
+      setVoiceUsage(data)
+    } catch (error) {
+      setVoiceUsageError(error.message || 'Unable to load usage information.')
+    } finally {
+      setVoiceUsageLoading(false)
+    }
+  }
+  async function loadCreditLedger() {
+    setCreditLedgerLoading(true)
+    setCreditLedgerError('')
+    try {
+      const data = await apiRequest('/api/voices/credits')
+      if (!data?.success || !data?.credits) {
+        throw new Error('The credit service returned an unexpected response.')
+      }
+      setCreditLedger(data)
+    } catch (error) {
+      setCreditLedgerError(error.message || 'Unable to load credit information.')
+    } finally {
+      setCreditLedgerLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (currentUser && activePage === 'Usage & Allowance') {
+      loadVoiceUsage()
+      loadCreditLedger()
+    }
+  }, [currentUser, activePage])
    useEffect(() => {
     checkApiHealth()
     restoreSession()
@@ -1603,6 +2144,86 @@ const [contentLoading, setContentLoading] = useState(false)
       setContent([])
     }
   }, [currentUser])
+
+  // Load persisted distribution plans only for authenticated users.
+  useEffect(() => {
+    if (currentUser && activePage === 'Distribution Agent') {
+      loadDistributionPlans()
+    }
+  }, [currentUser, activePage])
+
+  // Reload the library whenever an authenticated user opens Media.
+  useEffect(() => {
+    if (currentUser && activePage === 'Media') {
+      loadMediaAssets()
+    }
+  }, [currentUser, activePage])
+
+  // Restore the saved Theatre selection after authentication on a full refresh.
+  useEffect(() => {
+    if (!currentUser || mediaRestoreAttempted) return
+
+    setMediaRestoreAttempted(true)
+
+    // Restore Theatre after refresh only for an active video-watching session.
+    if (sessionStorage.getItem('diraflow_studio_theatre_watching_video') !== '1') {
+      return
+    }
+
+    const savedExternalVideoUrl = localStorage.getItem('diraflow_studio_theatre_external_video')
+
+    if (savedExternalVideoUrl) {
+      const videoId = getYouTubeVideoId(savedExternalVideoUrl)
+
+      if (videoId) {
+        localStorage.removeItem('diraflow_studio_theatre_asset_id')
+        setMediaPreview({
+          id: `external-youtube-${videoId}`,
+          originalFilename: `YouTube video (${videoId})`,
+          mimeType: 'video/youtube',
+          url: `https://www.youtube-nocookie.com/embed/${videoId}`,
+          externalUrl: savedExternalVideoUrl,
+          external: true,
+          objectUrl: false,
+        })
+        setActivePage('Studio Theatre')
+        return
+      }
+
+      localStorage.removeItem('diraflow_studio_theatre_external_video')
+      setMediaError('The saved YouTube URL is invalid. Open Media Library to enter a valid link.')
+      return
+    }
+
+    const savedAssetId = localStorage.getItem('diraflow_studio_theatre_asset_id')
+    if (!savedAssetId) return
+
+    setActivePage('Media')
+
+    async function restoreTheatreAsset() {
+      try {
+        const payload = await apiRequest('/api/assets/')
+        const assets = Array.isArray(payload?.assets) ? payload.assets : []
+        setMediaAssets(assets)
+
+        const asset = assets.find((item) => item.id === savedAssetId)
+        if (!asset) {
+          setMediaError(
+            'The saved Theatre selection was not found in the accessible media library. Your stored files have not been deleted by this action.'
+          )
+          return
+        }
+
+        await handleMediaPreview(asset)
+      } catch (error) {
+        setMediaError(
+          error.message || 'Unable to restore the saved Theatre selection.'
+        )
+      }
+    }
+
+    restoreTheatreAsset()
+  }, [currentUser, mediaRestoreAttempted])
 
   const statistics = useMemo(() => {
     return {
@@ -1765,6 +2386,9 @@ const [contentLoading, setContentLoading] = useState(false)
   }
 
   const handleNavigation = (page) => {
+    if (page !== 'Studio Theatre') {
+      sessionStorage.removeItem('diraflow_studio_theatre_watching_video')
+    }
     setActivePage(page)
 
     if (page === 'Projects') {
@@ -2430,7 +3054,7 @@ Thank you for watching.`
 
                       {selectedPresenter.id ===
                         presenter.id && (
-                        <span className="presenter-selected-check">✓</span>
+                        <span className="presenter-selected-check">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span>
                       )}
                     </button>
                   ))}
@@ -2499,13 +3123,13 @@ Thank you for watching.`
                       value={previewSpeed}
                       onChange={(event) => setPreviewSpeed(event.target.value)}
                     >
-                      <option value="0.7">Extra slow — 0.70×</option>
-                      <option value="0.75">Slow — 0.75×</option>
-                      <option value="0.8">Gentle — 0.80×</option>
-                      <option value="0.85">Measured — 0.85×</option>
-                      <option value="0.9">Steady — 0.90×</option>
-                      <option value="1">Normal — 1.00×</option>
-                      <option value="1.1">Fast — 1.10×</option>
+                      <option value="0.7">Extra slow ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.70ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
+                      <option value="0.75">Slow ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.75ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
+                      <option value="0.8">Gentle ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.80ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
+                      <option value="0.85">Measured ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.85ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
+                      <option value="0.9">Steady ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.90ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
+                      <option value="1">Normal ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 1.00ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
+                      <option value="1.1">Fast ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 1.10ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
                     </select>
                   </div>
                 </div>
@@ -2553,7 +3177,7 @@ Thank you for watching.`
         aria-label={`${previewingVoiceId === voice.id ? 'Stop' : 'View'} preview for ${voice.name}`}
       >
         <span className="voice-preview-icon" aria-hidden="true">
-          {previewingVoiceId === voice.id ? '■' : '▶'}
+          {previewingVoiceId === voice.id ? 'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ' : 'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¶'}
         </span>
         <span>
           {previewingVoiceId === voice.id ? 'Stop preview' : 'View preview'}
@@ -2595,6 +3219,62 @@ Thank you for watching.`
                     before sending it to the production
                     engine.
                   </p>
+                </div>
+
+                <div className="script-document-upload">
+                  <label htmlFor="script-document-file">Upload a script document</label>
+                  <p>Word (.docx), PDF (.pdf) or plain text (.txt). Maximum file size: 50 MB.</p>
+                  <input
+                    id="script-document-file"
+                    type="file"
+                    accept=".docx,.pdf,.txt"
+                    disabled={scriptUploadLoading}
+                    onChange={handleScriptDocumentUpload}
+                  />
+                  {scriptUploadLoading && (
+                    <p role="status">{scriptUploadMessage}</p>
+                  )}
+                  {scriptUploadError && (
+                    <p className="script-upload-error" role="alert">{scriptUploadError}</p>
+                  )}
+                  {!scriptUploadLoading && scriptUploadMessage && (
+                    <p className="script-upload-message" role="status">{scriptUploadMessage}</p>
+                  )}
+
+                  {pendingExtractedScript && (
+                    <div className="script-extraction-review">
+                      <h3>Review extracted script</h3>
+                      <p>
+                        File: {pendingExtractedScript.fileName}
+                        {' ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· '}
+                        {pendingExtractedScript.wordCount ?? pendingExtractedScript.text.trim().split(/\s+/).filter(Boolean).length} words
+                      </p>
+                      <textarea
+                        aria-label="Review and edit extracted script before replacing the current script"
+                        value={pendingExtractedScript.text}
+                        onChange={(event) =>
+                          setPendingExtractedScript((current) =>
+                            current ? { ...current, text: event.target.value } : current
+                          )
+                        }
+                        rows={10}
+                      />
+                      <div className="script-upload-actions">
+                        <button type="button" onClick={applyExtractedScript}>
+                          Replace current script
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingExtractedScript(null)
+                            setScriptUploadMessage('Import cancelled. Your current script was kept.')
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="script-layout">
@@ -3003,7 +3683,7 @@ Thank you for watching.`
                     </h3>
 
                     <div className="preview-check">
-                      <span className="preview-check-mark">✓</span>
+                      <span className="preview-check-mark">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span>
 
                       <div>
                         <strong>
@@ -3017,7 +3697,7 @@ Thank you for watching.`
                     </div>
 
                     <div className="preview-check">
-                      <span className="preview-check-mark">✓</span>
+                      <span className="preview-check-mark">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span>
 
                       <div>
                         <strong>
@@ -3031,7 +3711,7 @@ Thank you for watching.`
                     </div>
 
                     <div className="preview-check">
-                      <span className="preview-check-mark">✓</span>
+                      <span className="preview-check-mark">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span>
 
                       <div>
                         <strong>
@@ -3046,7 +3726,7 @@ Thank you for watching.`
                     </div>
 
                     <div className="preview-check">
-                      <span className="preview-check-mark">✓</span>
+                      <span className="preview-check-mark">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span>
 
                       <div>
                         <strong>
@@ -3246,7 +3926,7 @@ Thank you for watching.`
         <MetricCard
           label="Approved"
           value={statistics.approved}
-          icon="✓"
+          icon="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“"
         />
 
         <MetricCard
@@ -3509,7 +4189,7 @@ Thank you for watching.`
 
   const renderDistributionWorkspace = () => {
     const eligibleContent = content.filter(
-      (item) => item.status === 'APPROVED' || item.status === 'PUBLISHED'
+      (item) => item.status === 'APPROVED'
     )
 
     const platformOptions = [
@@ -3530,13 +4210,23 @@ Thank you for watching.`
       )
     }
 
-    const validateDistributionPlan = (event) => {
-      event.preventDefault()
-      setDistributionFeedback('')
+    const validateDistributionPlan = () => {
       setDistributionError('')
+      setDistributionFeedback('')
+
+      if (distributionSubmitting) return
 
       if (!distributionContentId) {
-        setDistributionError('Select approved or previously published content first.')
+        setDistributionError('Select approved content first.')
+        return
+      }
+
+      const selectedContent = eligibleContent.find(
+        (item) => String(item.id) === String(distributionContentId)
+      )
+
+      if (!selectedContent) {
+        setDistributionError('The selected content is not approved or is no longer available. Refresh your content and try again.')
         return
       }
 
@@ -3551,28 +4241,173 @@ Thank you for watching.`
           return
         }
 
-        const scheduledAt = new Date(`${distributionDate}T${distributionTime}`)
-        if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+        let scheduledAt
+        try {
+          scheduledAt = zonedDateTimeToIso(
+            distributionDate,
+            distributionTime,
+            distributionTimezone
+          )
+        } catch (error) {
+          setDistributionError(error.message || 'Unable to interpret the selected timezone.')
+          return
+        }
+
+        if (new Date(scheduledAt) <= new Date()) {
           setDistributionError('The scheduled date and time must be in the future.')
           return
         }
 
         const repeatCount = Number(distributionRepeatCount)
-        if (!Number.isInteger(repeatCount) || repeatCount < 1 || repeatCount > 100) {
-          setDistributionError('Repetition count must be a whole number between 1 and 100.')
+        if (!Number.isInteger(repeatCount) || repeatCount < 1 || repeatCount > 30) {
+          setDistributionError('Number of publications must be a whole number between 1 and 30.')
           return
         }
       }
 
+      const platformIds = {
+        'LinkedIn': 'linkedin',
+        'Facebook': 'facebook',
+        'Instagram': 'instagram',
+        'YouTube': 'youtube',
+        'TikTok': 'tiktok',
+        'X': 'x',
+        'WhatsApp Business': 'whatsapp_business',
+      }
+
+      const mappedPlatforms = distributionPlatforms.map(
+        (platform) => platformIds[platform]
+      )
+
+      if (mappedPlatforms.some((platform) => !platform)) {
+        setDistributionError('One or more selected destinations could not be mapped to a supported platform identifier.')
+        return
+      }
+
       setDistributionFeedback(
-        'Plan validated in this browser only. No schedule has been saved and no platform has been contacted. Backend persistence and authorised platform integrations are still required.'
+        'Validation passed. Your plan has not been queued or published.'
       )
     }
 
+    const submitDistributionPlan = async (event) => {
+      event.preventDefault()
+      if (distributionSubmitting) return
+
+      setDistributionFeedback('')
+      setDistributionError('')
+
+      if (!distributionContentId) {
+        setDistributionError('Select approved content first.')
+        return
+      }
+
+      const selectedContent = eligibleContent.find(
+        (item) => String(item.id) === String(distributionContentId)
+      )
+
+      if (!selectedContent) {
+        setDistributionError('The selected content is not approved or is no longer available. Refresh your content and try again.')
+        return
+      }
+
+      if (distributionPlatforms.length === 0) {
+        setDistributionError('Select at least one intended destination.')
+        return
+      }
+
+      let scheduledAt
+      let repeatInterval = 'NONE'
+      let repeatCount = 1
+
+      if (distributionMode === 'SCHEDULE') {
+        if (!distributionDate || !distributionTime) {
+          setDistributionError('Choose a future date and time for scheduled distribution.')
+          return
+        }
+
+        try {
+          scheduledAt = zonedDateTimeToIso(
+            distributionDate,
+            distributionTime,
+            distributionTimezone
+          )
+        } catch (error) {
+          setDistributionError(error.message || 'Unable to interpret the selected timezone.')
+          return
+        }
+
+        if (new Date(scheduledAt) <= new Date()) {
+          setDistributionError('The scheduled date and time must be in the future.')
+          return
+        }
+
+        repeatInterval = distributionRepeatInterval
+        repeatCount = Number(distributionRepeatCount)
+
+        if (!Number.isInteger(repeatCount) || repeatCount < 1 || repeatCount > 30) {
+          setDistributionError('Number of publications must be a whole number between 1 and 30.')
+          return
+        }
+
+        if (repeatInterval === 'NONE') {
+          repeatCount = 1
+        }
+      }
+
+      const platformIds = {
+        'LinkedIn': 'linkedin',
+        'Facebook': 'facebook',
+        'Instagram': 'instagram',
+        'YouTube': 'youtube',
+        'TikTok': 'tiktok',
+        'X': 'x',
+        'WhatsApp Business': 'whatsapp_business',
+      }
+
+      const payload = {
+        contentId: distributionContentId,
+        platforms: distributionPlatforms.map((platform) => platformIds[platform]),
+        timezone: distributionTimezone,
+        repeatInterval,
+        repeatCount,
+        ...(scheduledAt ? { scheduledAt } : {}),
+      }
+
+      if (payload.platforms.some((platform) => !platform)) {
+        setDistributionError('One or more selected destinations could not be mapped to a supported platform identifier.')
+        return
+      }
+
+      setDistributionSubmitting(true)
+
+      try {
+        const response = await apiRequest('/api/distribution', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        })
+
+        if (!response?.success || !response?.data) {
+          throw new Error(response?.message || 'The server did not confirm that the plan was queued.')
+        }
+
+        setDistributionFeedback(
+          'Plan queued in DiraFlow. External publishing is not connected, so no social post has been published.'
+        )
+
+        await loadDistributionPlans()
+      } catch (error) {
+        setDistributionError(
+          error.message || 'Unable to queue this distribution plan. Please try again.'
+        )
+      } finally {
+        setDistributionSubmitting(false)
+      }
+    }
     return (
+      <>
       <section className="workspace-page distribution-workspace">
         <div className="workspace-heading">
-          <p className="eyebrow">DIRAFLOW MEDIAAI · DISTRIBUTION</p>
+          <p className="eyebrow">DIRAFLOW MEDIAAI ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· DISTRIBUTION</p>
           <h1>Distribution Agent</h1>
           <p>
             Prepare approved content for immediate or scheduled distribution across your selected channels.
@@ -3580,13 +4415,13 @@ Thank you for watching.`
         </div>
 
         <div className="distribution-status-note" role="status">
-          <strong>Integration status: Not connected</strong>
+          <strong>Queue connected Ã¢â‚¬â€ external publishing not connected</strong>
           <span>
-            This workspace validates your plan only. Publishing and persistent scheduling are not active yet.
+            Plans can be saved to the DiraFlow queue. Publishing to external platforms requires authorised integrations and is not performed by this form.
           </span>
         </div>
 
-        <form className="distribution-form" onSubmit={validateDistributionPlan}>
+        <form className="distribution-form" onSubmit={submitDistributionPlan}>
           <div className="distribution-section">
             <h2>1. Select content</h2>
             <label htmlFor="distribution-content">Approved content</label>
@@ -3599,7 +4434,7 @@ Thank you for watching.`
               <option value="">Choose approved content</option>
               {eligibleContent.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.title} · {item.status}
+                  {item.title} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {item.status}
                 </option>
               ))}
             </select>
@@ -3703,7 +4538,7 @@ Thank you for watching.`
                       id="distribution-repeat-count"
                       type="number"
                       min="1"
-                      max="100"
+                      max="30"
                       value={distributionRepeatCount}
                       onChange={(event) => setDistributionRepeatCount(event.target.value)}
                       disabled={distributionRepeatInterval === 'NONE'}
@@ -3711,7 +4546,7 @@ Thank you for watching.`
                   </div>
                 </div>
                 <p className="distribution-help">
-                  Repetition is a planned setting only; recurring jobs are not created or executed yet.
+                  Recurring occurrences are stored as queued deliveries. External publishing remains disconnected.
                 </p>
               </>
             )}
@@ -3745,8 +4580,20 @@ Thank you for watching.`
           )}
 
           <div className="distribution-actions">
-            <button type="submit" className="primary-button">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={validateDistributionPlan}
+              disabled={distributionSubmitting}
+            >
               Validate distribution plan
+            </button>
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={distributionSubmitting}
+            >
+              {distributionSubmitting ? 'Queuing plan...' : 'Queue distribution plan'}
             </button>
             <button
               type="button"
@@ -3768,8 +4615,406 @@ Thank you for watching.`
           </div>
         </form>
       </section>
+        <section className="distribution-saved-plans" aria-labelledby="distribution-saved-plans-title">
+          <div className="distribution-plans-heading">
+            <div>
+              <h2 id="distribution-saved-plans-title">Saved distribution plans</h2>
+              <p className="distribution-help">
+                Review queued plans and individual destination delivery statuses. Queueing does not publish externally.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={loadDistributionPlans}
+              disabled={distributionPlansLoading}
+            >
+              {distributionPlansLoading ? 'Refreshing...' : 'Refresh plans'}
+            </button>
+          </div>
+
+          {distributionPlansError && (
+            <p className="distribution-feedback error" role="alert">
+              {distributionPlansError}
+            </p>
+          )}
+
+          {distributionPlansLoading && distributionPlans.length === 0 && (
+            <p className="distribution-help" role="status">Loading saved plans...</p>
+          )}
+
+          {!distributionPlansLoading && !distributionPlansError && distributionPlans.length === 0 && (
+            <p className="distribution-plans-empty">
+              No distribution plans found for this workspace yet. Queue an approved item above to see it here.
+            </p>
+          )}
+
+          {distributionPlans.map((plan) => (
+            <article className="distribution-plan-card" key={plan.id}>
+              <div className="distribution-plan-heading">
+                <div className="distribution-plan-title">
+                  <h3>{plan.content?.title || 'Untitled content'}</h3>
+                  <p>{plan.content?.type || 'Content'} Ã‚Â· Plan ID: {plan.id}</p>
+                </div>
+                <span className={`distribution-plan-status status-${String(plan.status || 'unknown').toLowerCase()}`}>
+                  {String(plan.status || 'UNKNOWN').replaceAll('_', ' ')}
+                </span>
+              </div>
+
+              <dl className="distribution-plan-details">
+                <div>
+                  <dt>Schedule</dt>
+                  <dd>
+                    {plan.scheduledAt
+                      ? new Date(plan.scheduledAt).toLocaleString()
+                      : 'Queued without a scheduled time'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Timezone</dt>
+                  <dd>{plan.timezone || 'Not specified'}</dd>
+                </div>
+                <div>
+                  <dt>Repeat</dt>
+                  <dd>
+                    {plan.repeatInterval && plan.repeatInterval !== 'NONE'
+                      ? `${plan.repeatInterval} Ã‚Â· ${plan.repeatCount || 1} occurrence(s)`
+                      : 'No repeat'}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="distribution-deliveries">
+                <h4>Destination deliveries</h4>
+                {Array.isArray(plan.deliveries) && plan.deliveries.length > 0 ? (
+                  <ul>
+                    {plan.deliveries.map((delivery) => (
+                      <li key={delivery.id}>
+                        <span>
+                          {String(delivery.platform || 'Unknown platform').replaceAll('_', ' ')}
+                          {delivery.occurrenceNumber
+                            ? ` Ã‚Â· Occurrence ${delivery.occurrenceNumber}`
+                            : ''}
+                        </span>
+                        <span className={`distribution-delivery-status status-${String(delivery.status || 'unknown').toLowerCase()}`}>
+                          {String(delivery.status || 'UNKNOWN').replaceAll('_', ' ')}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="distribution-help">No delivery records are available for this plan.</p>
+                )}
+              </div>
+
+              <p className="distribution-plan-notice">
+                External publishing is not connected. Delivery status reflects the queue, not confirmation of a social post.
+              </p>
+
+              {plan.status === 'QUEUED' && (
+                <div className="distribution-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => cancelDistributionPlan(plan.id)}
+                    disabled={Boolean(distributionCancellingId)}
+                  >
+                    {distributionCancellingId === plan.id
+                      ? 'Cancelling...'
+                      : 'Cancel queued plan'}
+                  </button>
+                </div>
+              )}
+            </article>
+          ))}
+        </section>
+      </>
     )
   }
+  const renderMediaWorkspace = () => (
+    <section className="workspace-page">
+      <div className="workspace-heading">
+        <p className="eyebrow">DIRAFLOW MEDIAAI</p>
+        <h1>Media Library</h1>
+        <p>Manage your uploaded images, audio, video and supporting documents in your current workspace.</p>
+      </div>
+
+      <section className="workspace-card">
+        <h2>Upload media</h2>
+        <p>Accepted formats include JPEG, PNG, WebP, GIF, MP4, WebM, MP3, MP4 audio, WAV, OGG, PDF and plain text. Maximum file size: 100 MB.</p>
+
+        {canCreateContent ? (
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,audio/mpeg,audio/mp4,audio/wav,audio/ogg,application/pdf,text/plain"
+            disabled={mediaUploading}
+            onChange={handleMediaUpload}
+          />
+        ) : (
+          <p>You do not have the content creation permission needed to upload or delete assets.</p>
+        )}
+
+        {mediaUploading && <p role="status">{mediaFeedback}</p>}
+      </section>
+
+      <section className="workspace-card" style={{ marginTop: 24 }}>
+        <h2>Open an external YouTube video</h2>
+        <p>
+          Paste a YouTube video link to play it in Studio Theatre. The link is saved in this browser only;
+          DiraFlow does not upload or download the YouTube video.
+        </p>
+        <form
+          onSubmit={handleExternalVideoSubmit}
+          style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}
+        >
+          <input
+            type="url"
+            value={externalVideoUrl}
+            onChange={(event) => setExternalVideoUrl(event.target.value)}
+            placeholder="https://www.youtube.com/watch?v=..."
+            aria-label="YouTube video URL"
+            required
+            style={{ flex: '1 1 320px', minWidth: 0 }}
+          />
+          <button type="submit" className="primary-button">
+            Open in Studio Theatre
+          </button>
+        </form>
+      </section>
+
+      <VideoStudio
+        assets={mediaAssets}
+        canCreateContent={canCreateContent}
+        apiRequest={apiRequest}
+        apiBaseUrl={API_BASE_URL}
+        getStoredToken={getStoredToken}
+        onSaved={async (savedAsset) => {
+          const refreshedAssets = await loadMediaAssets()
+          const assetForPreview = refreshedAssets.find(
+            (asset) => asset.id === savedAsset?.id
+          )
+
+          if (!assetForPreview) {
+            throw new Error(
+              'The video was uploaded, but it could not be found in the refreshed Media Library.'
+            )
+          }
+
+          await handleMediaPreview(assetForPreview)
+        }}
+      />
+
+      {mediaError && (
+        <p className="workspace-feedback" role="alert">{mediaError}</p>
+      )}
+
+      {!mediaUploading && mediaFeedback && (
+        <p className="workspace-feedback" role="status">{mediaFeedback}</p>
+      )}
+
+      <section className="workspace-card" style={{ marginTop: 24 }}>
+        <div className="workspace-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <h2>Workspace assets ({mediaAssets.length})</h2>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={mediaLoading}
+            onClick={loadMediaAssets}
+          >
+            {mediaLoading ? 'Refreshing...' : 'Refresh library'}
+          </button>
+        </div>
+
+        {mediaLoading && mediaAssets.length === 0 && <p>Loading media assets...</p>}
+
+        {!mediaLoading && mediaAssets.length === 0 && (
+          <div className="empty-state">
+            <h3>Your media library is empty</h3>
+            <p>Upload a supported file to start building your library.</p>
+          </div>
+        )}
+
+        {mediaAssets.length > 0 && (
+          <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+            {mediaAssets.map((asset) => (
+              <article
+                key={asset.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 12,
+                  padding: 14,
+                  border: '1px solid var(--border-color, #dfe4ec)',
+                  borderRadius: 12,
+                }}
+              >
+                <div style={{ minWidth: 0, flex: '1 1 240px' }}>
+                  <strong style={{ overflowWrap: 'anywhere' }}>{asset.originalFilename}</strong>
+                  <p style={{ margin: '6px 0', color: 'var(--text-secondary, #687386)' }}>
+                    {asset.mimeType} Ãƒâ€šÃ‚Â· {(Number(asset.sizeBytes) / (1024 * 1024)).toFixed(2)} MB
+                  </p>
+                  <span>{asset.status}</span>
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {asset.status === 'AVAILABLE' && (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => handleMediaPreview(asset)}
+                    >
+                      Open / Preview
+                    </button>
+                  )}
+
+                  {canCreateContent && ['AVAILABLE', 'PENDING_UPLOAD', 'FAILED'].includes(asset.status) && (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => handleMediaDelete(asset)}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+    </section>
+  )
+
+  const renderStudioTheatre = () => (
+    <section className="workspace-page">
+      <div className="workspace-heading">
+        <p className="eyebrow">DIRAFLOW MEDIAAI Ãƒâ€šÃ‚Â· DEMO</p>
+        <h1>Studio Theatre</h1>
+        <p>Review and play selected media in a dedicated demonstration workspace.</p>
+      </div>
+
+      <section className="workspace-card" style={{ marginTop: 24 }}>
+        {mediaPreview ? (
+          <>
+            <div
+              className="workspace-actions"
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}
+            >
+              <div>
+                <h2 style={{ overflowWrap: 'anywhere' }}>{mediaPreview.originalFilename}</h2>
+                <p>{mediaPreview.mimeType || 'Media file'}</p>
+              </div>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setMediaPreview(null)
+                  localStorage.removeItem('diraflow_studio_theatre_asset_id')
+                  localStorage.removeItem('diraflow_studio_theatre_external_video')
+                  sessionStorage.removeItem('diraflow_studio_theatre_watching_video')
+                  setMediaError('')
+                  setActivePage('Media')
+                }}
+              >
+                Back to Media Library
+              </button>
+            </div>
+
+            {(mediaPreview.mimeType || '').startsWith('image/') && (
+              <img
+                src={mediaPreview.url}
+                alt={mediaPreview.originalFilename}
+                style={{ display: 'block', width: '100%', maxHeight: 650, objectFit: 'contain', marginTop: 20 }}
+              />
+            )}
+
+            {(mediaPreview.mimeType || '').startsWith('audio/') && (
+              <div style={{ marginTop: 24 }}>
+                <p>Audio playback</p>
+                <audio controls preload="metadata" src={mediaPreview.url} style={{ width: '100%' }}>
+                  Your browser does not support audio playback.
+                </audio>
+              </div>
+            )}
+
+            {mediaPreview.external && mediaPreview.mimeType === 'video/youtube' && (
+              <iframe
+                title={mediaPreview.originalFilename}
+                src={mediaPreview.url}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  aspectRatio: '16 / 9',
+                  border: 0,
+                  marginTop: 20,
+                  background: '#111',
+                }}
+              />
+            )}
+
+            {!mediaPreview.external && (mediaPreview.mimeType || '').startsWith('video/') && (
+              <video
+                controls
+                preload="metadata"
+                src={mediaPreview.url}
+                style={{ display: 'block', width: '100%', maxHeight: 650, marginTop: 20, background: '#111' }}
+              >
+                Your browser does not support video playback.
+              </video>
+            )}
+
+            {mediaPreview.mimeType === 'application/pdf' && (
+              <iframe
+                title={mediaPreview.originalFilename}
+                src={mediaPreview.url}
+                style={{ width: '100%', height: 650, border: '1px solid var(--border-color, #dfe4ec)', marginTop: 20 }}
+              />
+            )}
+
+            {!mediaPreview.external &&
+             !(mediaPreview.mimeType || '').startsWith('image/') &&
+             !(mediaPreview.mimeType || '').startsWith('audio/') &&
+             !(mediaPreview.mimeType || '').startsWith('video/') &&
+             mediaPreview.mimeType !== 'application/pdf' && (
+              <p style={{ marginTop: 20 }}>
+                Inline preview is not available for this file type.
+              </p>
+            )}
+
+            <p style={{ marginTop: 16 }}>
+              <a href={mediaPreview.externalUrl || mediaPreview.url} target="_blank" rel="noreferrer">
+                Open media in a new tab
+              </a>
+            </p>
+            <p className="workspace-feedback" role="status">
+              {mediaPreview.external
+                ? 'This is an embedded external YouTube video. Playback depends on YouTube availability and the videoÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s embedding permissions. DiraFlow does not store or download this video.'
+                : 'Demo playback uses the selected stored asset. It does not represent AI video generation.'}
+            </p>
+          </>
+        ) : (
+          <>
+            <h2>No media selected</h2>
+            <p>Choose an available image, audio file, or video from the Media Library to preview it here.</p>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => handleNavigation('Media')}
+            >
+              Open Media Library
+            </button>
+          </>
+        )}
+      </section>
+    </section>
+  )
+
   const renderPlaceholder = () => (
     <section className="page-placeholder">
       <p className="eyebrow">
@@ -3800,43 +5045,85 @@ Thank you for watching.`
       <div className="workspace-heading">
         <p className="eyebrow">DIRAFLOW MEDIAAI</p>
         <h1>Usage &amp; Allowance</h1>
-        <p>
-          Monitor AI voice-preview usage and understand your
-          subscription allowance.
-        </p>
+        <p>Review recorded usage and your account status. Current totals reflect voice-preview events only; video tracking will appear when video-processing services are connected.</p>
       </div>
-
-      <div className="workspace-notice" role="status">
-        <strong>Usage tracking is being prepared</strong>
-        <p>
-          Your live usage and remaining allowance are not available yet.
-          DiraFlow will display verified usage here once account-level
-          tracking is connected.
-        </p>
+      <div className="panel">
+        <button
+          type="button"
+          onClick={() => {
+            loadVoiceUsage()
+            loadCreditLedger()
+          }}
+          disabled={voiceUsageLoading || creditLedgerLoading}
+        >
+          {voiceUsageLoading || creditLedgerLoading
+            ? 'Refreshing...'
+            : 'Refresh usage and credits'}
+        </button>
+        {voiceUsageError && <p role="alert">{voiceUsageError}</p>}
       </div>
-
       <div className="dashboard-grid">
         <div className="panel">
-          <div className="panel-heading">
-            <h2>Your allowance</h2>
-          </div>
-          <p><strong>Not yet connected</strong></p>
-          <p>
-            Your plan allowance, usage to date, remaining balance and
-            reset date will appear here when tracking is implemented.
-          </p>
+          <h2>Voice-preview activity summary</h2>
+          <p>Total requests: <strong>{voiceUsage?.usage?.total ?? 0}</strong></p>
+          <p>Successful: {voiceUsage?.usage?.succeeded ?? 0}</p>
+          <p>Failed: {voiceUsage?.usage?.failed ?? 0}</p>
+          <p>Blocked: {voiceUsage?.usage?.blocked ?? 0}</p>
         </div>
-
+<div className="panel">
+          <h2>Credit account</h2>
+          <p>Available credits: <strong>{creditLedger?.credits?.balance ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</strong></p>
+          <p>Account status: {creditLedger?.credits?.status || 'Not loaded'}</p>
+          <p>Lifetime credited: {creditLedger?.credits?.lifetimeCredited ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</p>
+          <p>Lifetime debited: {creditLedger?.credits?.lifetimeDebited ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</p>
+          {creditLedgerLoading && <p>Loading credit account...</p>}
+          {creditLedger?.credits?.status === 'NOT_INITIALIZED' && (
+            <p>No credit account has been initialized for this organisation.</p>
+          )}
+          {creditLedgerError && <p role="alert">{creditLedgerError}</p>}
+        </div>
         <div className="panel">
-          <div className="panel-heading">
-            <h2>Voice-preview service</h2>
-          </div>
-          <p><strong>Provider status not connected</strong></p>
-          <p>
-            This status will distinguish a platform-wide provider
-            interruption from reaching your personal subscription limit.
-          </p>
+          <h2>Subscription allowance</h2>
+          <p><strong>Not connected</strong></p>
+          <p>{voiceUsage?.subscriptionAllowance?.message || 'Verified plan limits, remaining allowance and reset dates are not available yet.'}</p>
         </div>
+        <div className="panel">
+          <h2>Voice-preview provider status</h2>
+          <p>{voiceUsage?.recentEvents?.some(event => event.errorCode === 'provider_not_configured') ? 'Service configuration is required before previews can run.' : 'Service status is based on recorded events, not a live availability check.'}</p>
+        </div>
+        <div className="panel">
+          <h2>Top-ups and billing</h2>
+          <p><strong>Not yet connected</strong></p>
+          <p>Secure payment confirmation and DiraFlow credit allocation are not available yet. No payment has been initiated.</p>
+        </div>
+      </div>
+<div className="panel">
+        <h2>Recent credit transactions</h2>
+        {creditLedgerError && <p role="alert">{creditLedgerError}</p>}
+        {(creditLedger?.transactions || []).map(transaction => (
+          <div className="workspace-notice" key={transaction.id}>
+            <strong>{String(transaction.type || 'Transaction').replace(/_/g, ' ')}</strong>
+            <p>Amount: {transaction.amount} credits Ãƒâ€šÃ‚Â· Balance after: {transaction.balanceAfter}</p>
+            {transaction.description && <p>{transaction.description}</p>}
+            <p>{transaction.createdAt ? new Date(transaction.createdAt).toLocaleString() : 'Date unavailable'}</p>
+          </div>
+        ))}
+        {!creditLedgerLoading && !creditLedgerError &&
+          !(creditLedger?.transactions || []).length && (
+            <p>No credit transactions have been recorded.</p>
+          )}
+      </div>
+      <div className="panel">
+        <h2>Recent voice-preview history</h2>
+        {(voiceUsage?.recentEvents || []).map(event => (
+          <div className="workspace-notice" key={event.id}>
+            <strong>{String(event.operation || 'Voice preview').replace(/_/g, ' ')}</strong>
+            <p>Status: {event.status || 'Unknown'} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Characters: {event.characterCount ?? 0}</p>
+            <p>{event.createdAt ? new Date(event.createdAt).toLocaleString() : 'Date unavailable'}</p>
+            {event.errorCode && <p>Details: {String(event.errorCode).replace(/_/g, ' ')}</p>}
+          </div>
+        ))}
+        {!voiceUsageLoading && !(voiceUsage?.recentEvents || []).length && <p>No recorded events returned.</p>}
       </div>
     </section>
   )
@@ -3953,7 +5240,7 @@ Thank you for watching.`
               <div className="workspace-saved-item" key={plan.id}>
                 <div>
                   <strong>{plan.title || 'Untitled discussion'}</strong>
-                  <p>{plan.format} · {plan.persona} · {plan.language}</p>
+                  <p>{plan.format} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {plan.persona} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {plan.language}</p>
                   <small>{plan.topic || 'No topic added'}</small>
                 </div>
                 <button
@@ -4072,7 +5359,7 @@ Thank you for watching.`
               const opening = `Thank you for calling ${business}.`
               const greeting = greetingWithoutBusiness || 'Good morning. How may I help you today?'
               const contactLine = receptionistForm.captureContact
-                ? 'Contact handling: The receptionist may request the caller’s name and preferred contact method when appropriate.'
+                ? 'Contact handling: The receptionist may request the caller\u2019s name and preferred contact method when appropriate.'
                 : 'Contact handling: Do not request contact details in this sample.'
               const escalationLine = receptionistForm.escalateUrgent
                 ? `Escalation: Urgent or sensitive enquiries should be referred to a human contact. Intended routing team: ${receptionistForm.routeTo}.`
@@ -4082,13 +5369,20 @@ Thank you for watching.`
                 || 'Announce the configured business name first, then deliver the configured opening greeting exactly once. Listen to the caller and identify the enquiry before responding.'
               setReceptionistGuidancePreview(
                 internalGuidance.replace(
-                  /Begin with the configured greeting:\s*["“”]*/gi,
+                  /Begin with the configured greeting:\s*["\u201C\u201D]*/gi,
                   'Announce the configured business name first, then deliver the configured opening greeting exactly once. '
                 )
               )
             }}
           >
-            Preview sample re      <div className="workspace-panel receptionist-chat-panel">
+            Preview sample response
+          </button>
+        </div>
+
+        <span>Settings are stored in this browser. Live call handling is not connected.</span>
+      </form>
+
+        <div className="workspace-panel receptionist-chat-panel">
         <div className="workspace-panel-heading">
           <h2>Test the receptionist</h2>
           <p>Try a sample conversation using your current settings.</p>
@@ -4112,7 +5406,7 @@ Thank you for watching.`
         >
           {receptionistMessages.length === 0 && (
             <p className="workspace-feedback">
-              Start with “Hello”, “What services do you offer?”, or “I need urgent help”.
+              Start with "Hello", "What services do you offer?", or "I need urgent help".
             </p>
           )}
 
@@ -4204,7 +5498,7 @@ Thank you for watching.`
             onClick={handleReceptionistSend}
             disabled={receptionistSending || !receptionistInput.trim()}
           >
-            {receptionistSending ? 'Responding…' : 'Send test message'}
+            {receptionistSending ? 'RespondingÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦' : 'Send test message'}
           </button>
           <button
             type="button"
@@ -4225,17 +5519,13 @@ Thank you for watching.`
           notify staff, or send messages. Contact details entered here are not saved by this chat panel.
         </p>
       </div>
-sponse
-          </button>
-          <span>Settings are stored in this browser. Live call handling is not connected.</span>
-        </div>
-      </form>
+
 
       {receptionistPreview && (
         <div className="workspace-panel" aria-live="polite">
           <div className="workspace-panel-heading">
             <h2>Sample receptionist response</h2>
-            <p>Illustrative preview only — this does not connect to a caller or send a message.</p>
+            <p>Illustrative preview only ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â this does not connect to a caller or send a message.</p>
           </div>
           <p className="workspace-feedback" style={{ whiteSpace: 'pre-wrap' }}>{receptionistPreview}</p>
           <button
@@ -4294,6 +5584,13 @@ sponse
       return renderDistributionWorkspace()
     }
 
+    if (activePage === 'Media') {
+      return renderMediaWorkspace()
+    }
+
+    if (activePage === 'Studio Theatre') {
+      return renderStudioTheatre()
+    }
     return renderPlaceholder()
   }
 
@@ -4379,7 +5676,7 @@ sponse
                 onClick={() => setShowLanding(false)}
               >
                 Get Started
-                <span>→</span>
+                <span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢</span>
               </button>
 
               <button
@@ -4480,10 +5777,10 @@ sponse
 
                   <div>
                     <span>AI workflow</span>
-                    <strong>Idea → Media → Audience</strong>
+                    <strong>Idea ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Media ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Audience</strong>
                   </div>
 
-                  <span className="landing-workflow-arrow">→</span>
+                  <span className="landing-workflow-arrow">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢</span>
                 </div>
 
               </div>
@@ -4495,7 +5792,7 @@ sponse
                 <strong>AI Presenter</strong>
                 <span>Ready for review</span>
               </div>
-              <span className="landing-floating-check">✓</span>
+              <span className="landing-floating-check">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“</span>
             </div>
 
             <div className="landing-floating-card landing-floating-news">
@@ -4742,7 +6039,7 @@ sponse
               onClick={() => setShowLanding(false)}
             >
               Enter DiraFlow MediaAI
-              <span>→</span>
+              <span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢</span>
             </button>
           </div>
 
@@ -4889,7 +6186,7 @@ sponse
             setShowLanding(true)
           }}
         >
-          ← Back to Home
+          ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Back to Home
         </button>
         <div className="auth-footer">
           <span>
@@ -5362,7 +6659,7 @@ function ContentDetailPanel({
 
         {content.status === 'PUBLISHED' && (
           <div className="published-message">
-            ✓ This content has been published.
+            ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ This content has been published.
           </div>
         )}
       </div>

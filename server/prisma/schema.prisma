@@ -64,6 +64,9 @@ model Organization {
   distributionPlans DistributionPlan[]
 
   mediaAssets MediaAsset[]
+  voiceUsageEvents VoiceUsageEvent[]
+  creditAccount CreditAccount?
+  creditTransactions CreditTransaction[]
 }
 
 model User {
@@ -88,6 +91,8 @@ model User {
   createdDistributionPlans DistributionPlan[] @relation("DistributionPlanCreatedBy")
 
   uploadedMediaAssets MediaAsset[]
+  voiceUsageEvents VoiceUsageEvent[]
+  creditTransactionsCreated CreditTransaction[] @relation("CreditTransactionCreatedBy")
 }
 
 model OrganizationMember {
@@ -119,6 +124,7 @@ model Workspace {
   distributionPlans DistributionPlan[]
 
   mediaAssets MediaAsset[]
+  voiceUsageEvents VoiceUsageEvent[]
 
   @@unique([organizationId, slug])
 }
@@ -306,6 +312,17 @@ model DistributionDelivery {
   @@index([status, processingLeaseExpiresAt])
 }
 
+enum VoiceUsageStatus {
+  SUCCEEDED
+  FAILED
+  BLOCKED
+}
+
+enum UsageMediaType {
+  VOICE
+  VIDEO
+}
+
 enum MediaAssetStatus {
   PENDING_UPLOAD
   AVAILABLE
@@ -338,4 +355,82 @@ model MediaAsset {
   @@index([contentId])
   @@index([uploadedById])
   @@index([status, createdAt])
+}
+model VoiceUsageEvent {
+  id             String           @id @default(cuid())
+  organizationId String
+  workspaceId    String
+  userId         String
+  mediaType      UsageMediaType   @default(VOICE)
+  provider       String           @default("elevenlabs")
+  operation      String           @default("voice_preview")
+  characterCount Int
+  status         VoiceUsageStatus
+  httpStatus     Int?
+  errorCode      String?
+  createdAt      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, workspaceId, createdAt])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([mediaType, createdAt])
+}
+
+enum CreditAccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum CreditTransactionType {
+  ALLOCATION
+  TOP_UP
+  USAGE_DEDUCTION
+  REFUND
+  ADJUSTMENT
+  REVERSAL
+}
+
+model CreditAccount {
+  id               String              @id @default(cuid())
+  organizationId   String              @unique
+  balance          Int                 @default(0)
+  lifetimeCredited Int                 @default(0)
+  lifetimeDebited  Int                 @default(0)
+  status           CreditAccountStatus @default(ACTIVE)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  transactions CreditTransaction[]
+
+  @@index([status])
+}
+
+model CreditTransaction {
+  id              String                @id @default(cuid())
+  organizationId  String
+  accountId       String
+  createdByUserId String?
+  type            CreditTransactionType
+  amount          Int
+  balanceAfter    Int
+  idempotencyKey  String                @unique
+  referenceType   String?
+  referenceId     String?
+  description     String?
+  createdAt       DateTime              @default(now())
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      CreditAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdBy    User?         @relation("CreditTransactionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([accountId, createdAt])
+  @@index([createdByUserId, createdAt])
+  @@index([type, createdAt])
+  @@index([referenceType, referenceId])
 }

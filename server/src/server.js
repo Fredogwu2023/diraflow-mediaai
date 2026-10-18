@@ -8,6 +8,7 @@ import assetsRoutes from "./routes/assets.routes.js";
 import distributionRoutes from "./routes/distribution.routes.js";
 import voiceRoutes from "./routes/voice.routes.js";
 import receptionistRoutes from "./routes/receptionist.routes.js";
+import scriptUploadRoutes from "./routes/script-upload.routes.js";
 
 
 
@@ -63,6 +64,7 @@ app.use("/api/distribution", distributionRoutes);
 // Voice preview routes
 app.use("/api/voices", voiceRoutes);
 app.use("/api/receptionist", receptionistRoutes);
+app.use("/api/scripts", scriptUploadRoutes);
 
 // Start server
 app.listen(PORT, () => {
