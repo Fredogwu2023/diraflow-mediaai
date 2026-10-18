@@ -117,3 +117,6 @@ server/backups/
 
 # Local backup copies
 *-backup*
+
+# Local safety backups and database dumps
+/backups/
