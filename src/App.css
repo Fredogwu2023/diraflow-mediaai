@@ -3167,10 +3167,12 @@ p {
 }
 
 .public-landing-logo {
-  width: 42px;
-  height: 42px;
+  width: 58px;
+  height: 58px;
   object-fit: contain;
+  object-position: center;
   display: block;
+  flex-shrink: 0;
   border-radius: 10px;
 }
 
@@ -3995,6 +3997,78 @@ p {
   line-height: 1.65;
 }
 
+/* CEO statement */
+.landing-ceo-section {
+  padding-top: 48px;
+}
+
+.landing-ceo-panel {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: clamp(24px, 5vw, 56px);
+  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.22));
+  border-radius: 24px;
+  background: var(--card-background, rgba(127, 127, 127, 0.05));
+}
+
+.landing-ceo-panel h2 {
+  max-width: 780px;
+  margin: 12px 0 24px;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  line-height: 1.15;
+}
+
+.landing-ceo-panel > p {
+  max-width: 780px;
+  line-height: 1.8;
+}
+
+.landing-ceo-language-block {
+  margin: 28px 0;
+  padding: 24px;
+  border-radius: 16px;
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.landing-ceo-language-block h3 {
+  margin-top: 0;
+}
+
+.landing-ceo-language-block p {
+  line-height: 1.75;
+}
+
+.landing-ceo-language-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.landing-ceo-language-list span {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color, rgba(127, 127, 127, 0.25));
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.landing-ceo-signature {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 30px;
+  line-height: 1.5;
+}
+
+.landing-ceo-signature strong {
+  font-size: 1.15rem;
+}
+
+.landing-ceo-signature span:last-child {
+  margin-top: 8px;
+  font-weight: 600;
+}
 /* CTA */
 
 .landing-cta-section {
@@ -4105,10 +4179,12 @@ p {
 }
 
 .landing-footer-diraflow-logo {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
+  object-position: center;
   display: block;
+  flex-shrink: 0;
 }
 
 .landing-footer-powered {
@@ -4122,10 +4198,12 @@ p {
 }
 
 .landing-footer-lewisham-logo {
-  width: 40px;
-  height: 40px;
+  width: 52px;
+  height: 52px;
   object-fit: contain;
+  object-position: center;
   display: block;
+  flex-shrink: 0;
   border-radius: 7px;
 }
 
@@ -4226,8 +4304,8 @@ p {
   }
 
   .public-landing-logo {
-    width: 37px;
-    height: 37px;
+    width: 46px;
+    height: 46px;
   }
 
   .landing-hero {

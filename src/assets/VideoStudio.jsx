@@ -462,7 +462,7 @@ export default function VideoStudio({
 
   return (
     <section className="workspace-card" style={{ marginTop: 24 }}>
-      <h2>Video Studio â€” image to video</h2>
+      <h2>Video Studio &#8212; image to video</h2>
       <p>
         Create a 16:9 slideshow video from your available image assets.
         The video is rendered in this browser and saved to your Media Library.

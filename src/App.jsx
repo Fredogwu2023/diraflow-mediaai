@@ -1723,7 +1723,7 @@ function App() {
     },
     French: {
       speed: 0.85,
-      sample: 'Bonjour et bienvenue sur DiraFlow MediaAI. Ceci est un aperÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§u vocal.',
+      sample: 'Bonjour et bienvenue sur DiraFlow MediaAI. Ceci est un aper\u00e7u vocal.',
     },
     Spanish: {
       speed: 0.85,
@@ -1731,7 +1731,7 @@ function App() {
     },
     Portuguese: {
       speed: 0.7,
-      sample: 'OlÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ e bem-vindo ao DiraFlow MediaAI. Esta ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© uma prÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©via de voz.',
+      sample: 'Ol\u00e1, bem-vindo ao DiraFlow MediaAI. Esta \u00e9 uma pr\u00e9via de voz.',
     },
     Swahili: {
       speed: 0.7,
@@ -1739,7 +1739,7 @@ function App() {
     },
     Arabic: {
       speed: 0.75,
-      sample: 'ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â±ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â­ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â¨ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â§ ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â¨ÃƒÆ’Ã¢â€žÂ¢Ãƒâ€ Ã¢â‚¬â„¢ ÃƒÆ’Ã¢â€žÂ¢Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â€žÂ¢Ãƒâ€¦Ã‚Â  DiraFlow MediaAI. ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â¹ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â€žÂ¢Ãƒâ€¦Ã‚Â ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Â© ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚ÂµÃƒÆ’Ã¢â€žÂ¢Ãƒâ€¹Ã¢â‚¬Â ÃƒÆ’Ã‹Å“Ãƒâ€šÃ‚Âª.',
+      sample: '\u0645\u0631\u062d\u0628\u064b\u0627 \u0628\u0643\u0645 \u0641\u064a DiraFlow MediaAI. \u0647\u0630\u0647 \u0645\u0639\u0627\u064a\u0646\u0629 \u0635\u0648\u062a\u064a\u0629.',
     },
     Hausa: {
       speed: 0.7,
@@ -1747,11 +1747,11 @@ function App() {
     },
     Yoruba: {
       speed: 0.7,
-      sample: 'ÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â¸ kÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â bÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚ÂÃƒÆ’Ã…â€™ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ DiraFlow MediaAI. ÃƒÆ’Ã†â€™Ãƒâ€¹Ã¢â‚¬Â yÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ ni ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â yÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚ÂºÃƒâ€šÃ‚Â¹ÃƒÆ’Ã…â€™ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬wÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â² ohÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¹n.',
+      sample: '\u1eb8 kaab\u1ecd s\u00ed DiraFlow MediaAI. \u00c8y\u00ed j\u1eb9\u0301 ay\u1eb9\u0300w\u00f2 oh\u00f9n.',
     },
     Igbo: {
       speed: 0.7,
-      sample: 'NnÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â na DiraFlow MediaAI. Nke a bÃƒÆ’Ã‚Â¡Ãƒâ€šÃ‚Â»Ãƒâ€šÃ‚Â¥ nnwale olu.',
+      sample: 'Nn\u1ecd\u1ecd na DiraFlow MediaAI. Nke a b\u1ee5 nnwale olu.',
     },
   }
   const previewVoice = async (voice, customText = '') => {
@@ -3132,7 +3132,7 @@ Thank you for watching.`
 
                       {selectedPresenter.id ===
                         presenter.id && (
-                        <span className="presenter-selected-check">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span>
+                        <span className="presenter-selected-check">&#10003;</span>
                       )}
                     </button>
                   ))}
@@ -3201,13 +3201,13 @@ Thank you for watching.`
                       value={previewSpeed}
                       onChange={(event) => setPreviewSpeed(event.target.value)}
                     >
-                      <option value="0.7">Extra slow ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.70ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
-                      <option value="0.75">Slow ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.75ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
-                      <option value="0.8">Gentle ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.80ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
-                      <option value="0.85">Measured ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.85ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
-                      <option value="0.9">Steady ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.90ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
-                      <option value="1">Normal ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 1.00ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
-                      <option value="1.1">Fast ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 1.10ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>
+                      <option value="0.7">Extra slow (0.7x)</option>
+                      <option value="0.75">Slow (0.75x)</option>
+                      <option value="0.8">Gentle (0.8x)</option>
+                      <option value="0.85">Measured (0.85x)</option>
+                      <option value="0.9">Steady (0.9x)</option>
+                      <option value="1">Normal (1.0x)</option>
+                      <option value="1.1">Fast (1.1x)</option>
                     </select>
                   </div>
                 </div>
@@ -3255,7 +3255,7 @@ Thank you for watching.`
         aria-label={`${previewingVoiceId === voice.id ? 'Stop' : 'View'} preview for ${voice.name}`}
       >
         <span className="voice-preview-icon" aria-hidden="true">
-          {previewingVoiceId === voice.id ? 'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ' : 'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¶'}
+          {previewingVoiceId === voice.id ? 'Stop' : 'Play'}
         </span>
         <span>
           {previewingVoiceId === voice.id ? 'Stop preview' : 'View preview'}
@@ -3324,7 +3324,7 @@ Thank you for watching.`
                       <h3>Review extracted script</h3>
                       <p>
                         File: {pendingExtractedScript.fileName}
-                        {' ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· '}
+                        {' · '}
                         {pendingExtractedScript.wordCount ?? pendingExtractedScript.text.trim().split(/\s+/).filter(Boolean).length} words
                       </p>
                       <textarea
@@ -3761,7 +3761,7 @@ Thank you for watching.`
                     </h3>
 
                     <div className="preview-check">
-                      <span className="preview-check-mark">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span>
+                      <span className="preview-check-mark">&#10003;</span>
 
                       <div>
                         <strong>
@@ -3775,7 +3775,7 @@ Thank you for watching.`
                     </div>
 
                     <div className="preview-check">
-                      <span className="preview-check-mark">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span>
+                      <span className="preview-check-mark">&#10003;</span>
 
                       <div>
                         <strong>
@@ -3789,7 +3789,7 @@ Thank you for watching.`
                     </div>
 
                     <div className="preview-check">
-                      <span className="preview-check-mark">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span>
+                      <span className="preview-check-mark">&#10003;</span>
 
                       <div>
                         <strong>
@@ -3804,7 +3804,7 @@ Thank you for watching.`
                     </div>
 
                     <div className="preview-check">
-                      <span className="preview-check-mark">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span>
+                      <span className="preview-check-mark">&#10003;</span>
 
                       <div>
                         <strong>
@@ -4004,7 +4004,7 @@ Thank you for watching.`
         <MetricCard
           label="Approved"
           value={statistics.approved}
-          icon="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“"
+          icon="VIDEO"
         />
 
         <MetricCard
@@ -4485,7 +4485,7 @@ Thank you for watching.`
       <>
       <section className="workspace-page distribution-workspace">
         <div className="workspace-heading">
-          <p className="eyebrow">DIRAFLOW MEDIAAI ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· DISTRIBUTION</p>
+          <p className="eyebrow">DIRAFLOW MEDIAAI &#8226; DISTRIBUTION</p>
           <h1>Distribution Agent</h1>
           <p>
             Prepare approved content for immediate or scheduled distribution across your selected channels.
@@ -4493,7 +4493,7 @@ Thank you for watching.`
         </div>
 
         <div className="distribution-status-note" role="status">
-          <strong>Queue connected Ã¢â‚¬â€ external publishing not connected</strong>
+          <strong>Queue connected &#8212; external publishing not connected</strong>
           <span>
             Plans can be saved to the DiraFlow queue. Publishing to external platforms requires authorised integrations and is not performed by this form.
           </span>
@@ -4512,7 +4512,7 @@ Thank you for watching.`
               <option value="">Choose approved content</option>
               {eligibleContent.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.title} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {item.status}
+                  {item.title} &#8226; {item.status}
                 </option>
               ))}
             </select>
@@ -4732,7 +4732,7 @@ Thank you for watching.`
               <div className="distribution-plan-heading">
                 <div className="distribution-plan-title">
                   <h3>{plan.content?.title || 'Untitled content'}</h3>
-                  <p>{plan.content?.type || 'Content'} Ã‚Â· Plan ID: {plan.id}</p>
+                <p>{plan.content?.type || 'Content'} · Plan ID: {plan.id}</p>
                 </div>
                 <span className={`distribution-plan-status status-${String(plan.status || 'unknown').toLowerCase()}`}>
                   {String(plan.status || 'UNKNOWN').replaceAll('_', ' ')}
@@ -4756,7 +4756,7 @@ Thank you for watching.`
                   <dt>Repeat</dt>
                   <dd>
                     {plan.repeatInterval && plan.repeatInterval !== 'NONE'
-                      ? `${plan.repeatInterval} Ã‚Â· ${plan.repeatCount || 1} occurrence(s)`
+                      ? `${plan.repeatInterval} · ${plan.repeatCount || 1} occurrence(s)`
                       : 'No repeat'}
                   </dd>
                 </div>
@@ -4771,7 +4771,7 @@ Thank you for watching.`
                         <span>
                           {String(delivery.platform || 'Unknown platform').replaceAll('_', ' ')}
                           {delivery.occurrenceNumber
-                            ? ` Ã‚Â· Occurrence ${delivery.occurrenceNumber}`
+                          ? ` · Occurrence ${delivery.occurrenceNumber}`
                             : ''}
                         </span>
                         <span className={`distribution-delivery-status status-${String(delivery.status || 'unknown').toLowerCase()}`}>
@@ -4931,7 +4931,7 @@ Thank you for watching.`
                 <div style={{ minWidth: 0, flex: '1 1 240px' }}>
                   <strong style={{ overflowWrap: 'anywhere' }}>{asset.originalFilename}</strong>
                   <p style={{ margin: '6px 0', color: 'var(--text-secondary, #687386)' }}>
-                    {asset.mimeType} Ãƒâ€šÃ‚Â· {(Number(asset.sizeBytes) / (1024 * 1024)).toFixed(2)} MB
+                  {asset.mimeType} · {(Number(asset.sizeBytes) / (1024 * 1024)).toFixed(2)} MB
                   </p>
                   <span>{asset.status}</span>
                 </div>
@@ -4969,7 +4969,7 @@ Thank you for watching.`
   const renderStudioTheatre = () => (
     <section className="workspace-page">
       <div className="workspace-heading">
-        <p className="eyebrow">DIRAFLOW MEDIAAI Ãƒâ€šÃ‚Â· DEMO</p>
+      <p className="eyebrow">DIRAFLOW MEDIAAI · DEMO</p>
         <h1>Studio Theatre</h1>
         <p>Review and play selected media in a dedicated demonstration workspace.</p>
       </div>
@@ -5072,7 +5072,7 @@ Thank you for watching.`
             </p>
             <p className="workspace-feedback" role="status">
               {mediaPreview.external
-                ? 'This is an embedded external YouTube video. Playback depends on YouTube availability and the videoÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s embedding permissions. DiraFlow does not store or download this video.'
+                  ? 'This is an embedded external YouTube video. Playback depends on YouTube availability and the video\'s embedding permissions. DiraFlow does not store or download this video.'
                 : 'Demo playback uses the selected stored asset. It does not represent AI video generation.'}
             </p>
           </>
@@ -5150,10 +5150,10 @@ Thank you for watching.`
         </div>
 <div className="panel">
           <h2>Credit account</h2>
-          <p>Available credits: <strong>{creditLedger?.credits?.balance ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</strong></p>
+        <p>Available credits: <strong>{creditLedger?.credits?.balance ?? 'Unavailable'}</strong></p>
           <p>Account status: {creditLedger?.credits?.status || 'Not loaded'}</p>
-          <p>Lifetime credited: {creditLedger?.credits?.lifetimeCredited ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</p>
-          <p>Lifetime debited: {creditLedger?.credits?.lifetimeDebited ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</p>
+        <p>Lifetime credited: {creditLedger?.credits?.lifetimeCredited ?? 'Unavailable'}</p>
+        <p>Lifetime debited: {creditLedger?.credits?.lifetimeDebited ?? 'Unavailable'}</p>
           {creditLedgerLoading && <p>Loading credit account...</p>}
           {creditLedger?.credits?.status === 'NOT_INITIALIZED' && (
             <p>No credit account has been initialized for this organisation.</p>
@@ -5181,7 +5181,7 @@ Thank you for watching.`
         {(creditLedger?.transactions || []).map(transaction => (
           <div className="workspace-notice" key={transaction.id}>
             <strong>{String(transaction.type || 'Transaction').replace(/_/g, ' ')}</strong>
-            <p>Amount: {transaction.amount} credits Ãƒâ€šÃ‚Â· Balance after: {transaction.balanceAfter}</p>
+            <p>Amount: {transaction.amount} credits · Balance after: {transaction.balanceAfter}</p>
             {transaction.description && <p>{transaction.description}</p>}
             <p>{transaction.createdAt ? new Date(transaction.createdAt).toLocaleString() : 'Date unavailable'}</p>
           </div>
@@ -5196,7 +5196,7 @@ Thank you for watching.`
         {(voiceUsage?.recentEvents || []).map(event => (
           <div className="workspace-notice" key={event.id}>
             <strong>{String(event.operation || 'Voice preview').replace(/_/g, ' ')}</strong>
-            <p>Status: {event.status || 'Unknown'} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Characters: {event.characterCount ?? 0}</p>
+            <p>Status: {event.status || 'Unknown'} · Characters: {event.characterCount ?? 0}</p>
             <p>{event.createdAt ? new Date(event.createdAt).toLocaleString() : 'Date unavailable'}</p>
             {event.errorCode && <p>Details: {String(event.errorCode).replace(/_/g, ' ')}</p>}
           </div>
@@ -5318,7 +5318,7 @@ Thank you for watching.`
               <div className="workspace-saved-item" key={plan.id}>
                 <div>
                   <strong>{plan.title || 'Untitled discussion'}</strong>
-                  <p>{plan.format} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {plan.persona} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {plan.language}</p>
+                  <p>{plan.format} · {plan.persona} · {plan.language}</p>
                   <small>{plan.topic || 'No topic added'}</small>
                 </div>
                 <button
@@ -5576,7 +5576,7 @@ Thank you for watching.`
             onClick={handleReceptionistSend}
             disabled={receptionistSending || !receptionistInput.trim()}
           >
-            {receptionistSending ? 'RespondingÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦' : 'Send test message'}
+          {receptionistSending ? 'Responding...' : 'Send test message'}
           </button>
           <button
             type="button"
@@ -5603,7 +5603,7 @@ Thank you for watching.`
         <div className="workspace-panel" aria-live="polite">
           <div className="workspace-panel-heading">
             <h2>Sample receptionist response</h2>
-            <p>Illustrative preview only ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â this does not connect to a caller or send a message.</p>
+            <p>Illustrative preview only — this does not connect to a caller or send a message.</p>
           </div>
           <p className="workspace-feedback" style={{ whiteSpace: 'pre-wrap' }}>{receptionistPreview}</p>
           <button
@@ -5754,7 +5754,7 @@ Thank you for watching.`
                 onClick={() => setShowLanding(false)}
               >
                 Get Started
-                <span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢</span>
+                <span aria-hidden="true">&#8594;</span>
               </button>
 
               <button
@@ -5855,10 +5855,10 @@ Thank you for watching.`
 
                   <div>
                     <span>AI workflow</span>
-                    <strong>Idea ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Media ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Audience</strong>
+                      <strong>Idea &#8594; Media &#8594; Audience</strong>
                   </div>
 
-                  <span className="landing-workflow-arrow">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢</span>
+                      <span className="landing-workflow-arrow">&#8594;</span>
                 </div>
 
               </div>
@@ -5870,7 +5870,7 @@ Thank you for watching.`
                 <strong>AI Presenter</strong>
                 <span>Ready for review</span>
               </div>
-              <span className="landing-floating-check">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“</span>
+              <span className="landing-floating-check">&#10003;</span>
             </div>
 
             <div className="landing-floating-card landing-floating-news">
@@ -6091,6 +6091,66 @@ Thank you for watching.`
           </div>
         </section>
 
+        <section className="landing-section landing-ceo-section">
+          <div className="landing-ceo-panel">
+            <p className="landing-eyebrow">A MESSAGE FROM THE CEO</p>
+            <h2>A more connected way to communicate, create and grow.</h2>
+
+            <p>
+              DiraFlow MediaAI is being developed to help businesses,
+              entrepreneurs, creators and media professionals communicate
+              consistently, produce professional content and organise
+              important workflows in one digital environment.
+            </p>
+
+            <p>
+              Our vision is to make effective business communication and
+              media production more accessible. By bringing together AI
+              presentation experiences, content workflows, podcast concepts
+              and distribution planning, we aim to help organisations spend
+              less time coordinating fragmented processes and more time
+              creating value.
+            </p>
+
+            <div className="landing-ceo-language-block">
+              <h3>Designed for international audiences</h3>
+              <p>
+                The DiraFlow AI Presenter is designed around nine languages:
+                English, French, Spanish, Portuguese, Swahili, Arabic, Hausa,
+                Yoruba and Igbo. English language variants include UK and US
+                English. This multilingual direction is intended to serve
+                diverse audiences, with availability dependent on the relevant
+                generation services and integrations.
+              </p>
+              <div className="landing-ceo-language-list">
+                <span>English (UK / US)</span>
+                <span>French</span>
+                <span>Spanish</span>
+                <span>Portuguese</span>
+                <span>Swahili</span>
+                <span>Arabic</span>
+                <span>Hausa</span>
+                <span>Yoruba</span>
+                <span>Igbo</span>
+              </div>
+            </div>
+
+            <p>
+              Built by Lewisham Multi Solutions Limited, DiraFlow MediaAI
+              will continue to evolve through customer feedback, responsible
+              innovation and the delivery of dependable services. Our guiding
+              principle is simple: understand the need, innovate thoughtfully,
+              deliver practical value and scale what works.
+            </p>
+
+            <div className="landing-ceo-signature">
+              <strong>Frederick Ogwu</strong>
+              <span>Founder &amp; CEO</span>
+              <span>Lewisham Multi Solutions Limited</span>
+              <span>Understand &#8226; Innovate &#8226; Deliver &#8226; Scale</span>
+            </div>
+          </div>
+        </section>
         <section className="landing-cta-section">
 
           <div className="landing-cta-orb landing-cta-orb-one" />
@@ -6117,7 +6177,7 @@ Thank you for watching.`
               onClick={() => setShowLanding(false)}
             >
               Enter DiraFlow MediaAI
-              <span>ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢</span>
+              <span aria-hidden="true">&#8594;</span>
             </button>
           </div>
 
@@ -6821,7 +6881,7 @@ function ContentDetailPanel({
 
         {content.status === 'PUBLISHED' && (
           <div className="published-message">
-            ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ This content has been published.
+            This content has been published.
           </div>
         )}
       </div>
