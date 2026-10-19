@@ -1189,6 +1189,15 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true)
   const [showLanding, setShowLanding] = useState(true)
   const [authError, setAuthError] = useState('')
+  const [authMode, setAuthMode] = useState('login')
+  const [registrationSubmitting, setRegistrationSubmitting] = useState(false)
+  const [signupForm, setSignupForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  })
 
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -2004,6 +2013,75 @@ function App() {
     }
   }
 
+  const handleRegister = async (event) => {
+    event.preventDefault()
+    setAuthError('')
+
+    const firstName = signupForm.firstName.trim()
+    const lastName = signupForm.lastName.trim()
+    const email = signupForm.email.trim().toLowerCase()
+    const password = signupForm.password
+    const confirmPassword = signupForm.confirmPassword
+
+    if (!firstName || !lastName || !email || !password || !confirmPassword) {
+      setAuthError('Please complete all fields.')
+      return
+    }
+
+    if (password.length < 8) {
+      setAuthError('Password must be at least 8 characters.')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setAuthError('The passwords do not match.')
+      return
+    }
+
+    setRegistrationSubmitting(true)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firstName, lastName, email, password }),
+      })
+
+      let data = null
+      try {
+        data = await response.json()
+      } catch {
+        data = null
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.message || `Registration failed (${response.status}).`)
+      }
+
+      if (!data?.token || !data?.user) {
+        throw new Error('Registration succeeded, but no login session was returned.')
+      }
+
+      localStorage.setItem('token', data.token)
+      setCurrentUser(data.user)
+      setActivePage('Dashboard')
+      setAuthError('')
+      setShowLanding(false)
+      setAuthMode('login')
+      setSignupForm({
+        firstName: '',
+        lastName: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+      })
+    } catch (error) {
+      console.error('Registration error:', error)
+      setAuthError(error.message || 'Unable to create your account. Please try again.')
+    } finally {
+      setRegistrationSubmitting(false)
+    }
+  }
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('accessToken')
@@ -6183,10 +6261,21 @@ Thank you for watching.`
           className="auth-back-home"
           onClick={() => {
             setAuthError('')
+            setAuthMode('signup')
+          }}
+        >
+          New to DiraFlow? Create an account
+        </button>
+
+        <button
+          type="button"
+          className="auth-back-home"
+          onClick={() => {
+            setAuthError('')
             setShowLanding(true)
           }}
         >
-          ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Back to Home
+          Back to home
         </button>
         <div className="auth-footer">
           <span>
@@ -6215,12 +6304,85 @@ Thank you for watching.`
     )
   }
 
+  const renderSignup = () => (
+    <div className="auth-shell">
+      <div className="auth-card">
+        <div className="auth-brand">
+          <img
+            src={diraflowLogo}
+            alt="DiraFlow MediaAI"
+            className="auth-logo"
+          />
+          <div>
+            <strong>DiraFlow</strong>
+            <span>MediaAI</span>
+          </div>
+        </div>
+
+        <div className="auth-heading">
+          <p className="eyebrow">DIRAFLOW MEDIAAI</p>
+          <h1>Create your account</h1>
+          <p>Create your organization and access your MediaAI Command Center.</p>
+        </div>
+
+        <form className="auth-form" onSubmit={handleRegister}>
+          <div className="auth-field">
+            <label htmlFor="signup-first-name">First name</label>
+            <input id="signup-first-name" value={signupForm.firstName}
+              onChange={(event) => setSignupForm((current) => ({ ...current, firstName: event.target.value }))}
+              autoComplete="given-name" required disabled={registrationSubmitting} />
+          </div>
+
+          <div className="auth-field">
+            <label htmlFor="signup-last-name">Last name</label>
+            <input id="signup-last-name" value={signupForm.lastName}
+              onChange={(event) => setSignupForm((current) => ({ ...current, lastName: event.target.value }))}
+              autoComplete="family-name" required disabled={registrationSubmitting} />
+          </div>
+
+          <div className="auth-field">
+            <label htmlFor="signup-email">Email address</label>
+            <input id="signup-email" type="email" value={signupForm.email}
+              onChange={(event) => setSignupForm((current) => ({ ...current, email: event.target.value }))}
+              autoComplete="email" required disabled={registrationSubmitting} />
+          </div>
+
+          <div className="auth-field">
+            <label htmlFor="signup-password">Password</label>
+            <input id="signup-password" type="password" value={signupForm.password}
+              onChange={(event) => setSignupForm((current) => ({ ...current, password: event.target.value }))}
+              autoComplete="new-password" minLength={8} required disabled={registrationSubmitting} />
+          </div>
+
+          <div className="auth-field">
+            <label htmlFor="signup-confirm-password">Confirm password</label>
+            <input id="signup-confirm-password" type="password" value={signupForm.confirmPassword}
+              onChange={(event) => setSignupForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+              autoComplete="new-password" minLength={8} required disabled={registrationSubmitting} />
+          </div>
+
+          {authError && <div className="auth-error">{authError}</div>}
+
+          <button type="submit" className="auth-submit" disabled={registrationSubmitting}>
+            {registrationSubmitting ? 'Creating account...' : 'Create account'}
+          </button>
+        </form>
+
+        <button type="button" className="auth-back-home" onClick={() => {
+          setAuthError('')
+          setAuthMode('login')
+        }}>
+          Already have an account? Sign in
+        </button>
+      </div>
+    </div>
+  )
   if (!currentUser) {
     if (showLanding) {
       return renderLanding()
     }
 
-    return renderLogin()
+    return authMode === 'signup' ? renderSignup() : renderLogin()
   }
 
   return (
